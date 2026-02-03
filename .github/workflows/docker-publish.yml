@@ -52,6 +52,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check albums.json in build context
+        run: |
+          ls -la src/data/albums.json 2>/dev/null || echo "FILE MISSING"
+          head -c 200 src/data/albums.json 2>/dev/null || true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 

@@ -11,6 +11,9 @@ RUN bun install
 # Copy source code
 COPY . .
 
+# Debug: verify albums.json is present in build context
+RUN ls -la src/data/albums.json && head -c 200 src/data/albums.json
+
 # Skip fetch-albums in Docker (uses Playwright/Chromium; not supported in Alpine).
 # Use committed src/data/albums.json instead.
 ENV SKIP_FETCH_ALBUMS=1
