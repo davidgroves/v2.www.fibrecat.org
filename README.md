@@ -9,28 +9,28 @@ Personal website of David Groves - built with Astro, TypeScript, and Tailwind CS
 - **[Tailwind CSS](https://tailwindcss.com/) + [DaisyUI](https://daisyui.com/)** - Styling and components
 - **[MDX](https://mdxjs.com/)** - Blog posts with React components
 - **Docker** - Containerized deployment
+- **Bun** - Runtime and package manager
 
 ## Development
 
 ### Prerequisites
 
-- Node.js 22+
-- npm or pnpm
+- [Bun](https://bun.sh/) 1.x
 
 ### Local Development
 
 ```bash
 # Install dependencies
-npm install
+bun install
 
 # Start development server
-npm run dev
+bun run dev
 
 # Build for production
-npm run build
+bun run build
 
 # Preview production build
-npm run preview
+bun run preview
 ```
 
 ### Using DevContainer

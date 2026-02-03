@@ -6,7 +6,7 @@
  * - src/data/photo-album-links.txt (one URL per line)
  * - src/data/photo-album-urls.ts (photoAlbumUrls array)
  *
- * Run: npm run fetch-albums (or npm run build, which runs this via prebuild)
+ * Run: bun run fetch-albums (or bun run build, which runs this via prebuild)
  */
 
 import { chromium } from 'playwright';

@@ -116,7 +116,7 @@ const hasLegacyData = albums.some(a => a.year && a.country);
         <p>Last updated: {new Date(lastUpdated).toLocaleDateString()}</p>
       )}
       {source === 'fallback' && (
-        <p class="text-warning">(Using fallback data - add URLs to src/data/photo-album-urls.ts and run <code class="text-xs">npm run fetch-albums</code>)</p>
+        <p class="text-warning">(Using fallback data - add URLs to src/data/photo-album-urls.ts and run <code class="text-xs">bun run fetch-albums</code>)</p>
       )}
     </div>
   </div>

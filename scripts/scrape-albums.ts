@@ -267,14 +267,14 @@ async function main(): Promise<void> {
         console.error('Options to authenticate:\n');
         console.error('1. Run locally (recommended):');
         console.error('   - Clone this repo on your local machine');
-        console.error('   - Run: npm run scrape:login');
+        console.error('   - Run: bun run scrape:login');
         console.error('   - Log in when the browser opens');
         console.error('   - Copy .playwright-session/ folder to the devcontainer\n');
         console.error('2. Run in devcontainer with VNC (if available):');
-        console.error('   - npm run scrape:login');
+        console.error('   - bun run scrape:login');
         console.error('   - Connect via VNC to see the browser\n');
         console.error('3. Use xvfb-run for virtual display:');
-        console.error('   - xvfb-run npm run scrape:login');
+        console.error('   - xvfb-run bun run scrape:login');
         console.error('   - Note: You cannot interact with the login page this way\n');
         process.exit(1);
       }

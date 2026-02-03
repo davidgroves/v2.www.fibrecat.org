@@ -1,6 +1,6 @@
 {
   "name": "fibrecat.org",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "image": "oven/bun:1-debian",
   "forwardPorts": [4321, 9222],
   "portsAttributes": {
     "4321": {
@@ -13,16 +13,25 @@
     }
   },
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {}
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "username": "bun",
+      "userUid": "1000",
+      "userGid": "1000"
+    }
   },
+  "remoteUser": "bun",
   "runArgs": [
-    "-e", "DISPLAY=${localEnv:DISPLAY}",
-    "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    "-e",
+    "DISPLAY=${localEnv:DISPLAY}",
+    "-v",
+    "/tmp/.X11-unix:/tmp/.X11-unix:rw"
   ],
   "containerEnv": {
     "DISPLAY": "${localEnv:DISPLAY}"
   },
-  "postCreateCommand": "npm install && npx playwright install --with-deps chromium",
+  "postCreateCommand": "bun install && bunx playwright install --with-deps chromium",
   "customizations": {
     "vscode": {
       "extensions": [

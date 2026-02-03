@@ -1,13 +1,12 @@
 # Stage 1: Builder
-# Installs all dependencies and builds the application
-FROM node:22-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install all dependencies (single npm ci avoids esbuild binary mismatch in multi-platform builds)
-RUN npm ci
+# Install all dependencies (creates bun.lockb if missing; use committed bun.lockb for reproducibility)
+RUN bun install
 
 # Copy source code
 COPY . .
@@ -17,46 +16,35 @@ COPY . .
 ENV SKIP_FETCH_ALBUMS=1
 
 # Build the application
-RUN npm run build
+RUN bun run build
 
-# Prune to production dependencies only (no separate deps stage = no esbuild version mismatch)
-RUN npm prune --omit=dev
+# Production dependencies only (Bun doesn't have prune; reinstall without dev)
+RUN rm -rf node_modules && bun install --production
 
 # Stage 2: Runtime
-# Minimal image with only production dependencies and built artifacts
-FROM node:22-alpine AS runtime
+FROM oven/bun:1-alpine AS runtime
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 astro
+RUN addgroup --system --gid 1001 bunjs && adduser --system --uid 1001 astro
 
-# Copy production dependencies and built app from builder (already pruned)
+# Copy production dependencies and built app from builder
 COPY --from=builder /app/node_modules ./node_modules
-
-# Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
-
-# Copy package.json for reference
 COPY --from=builder /app/package.json ./
 
 # Set ownership
-RUN chown -R astro:nodejs /app
+RUN chown -R astro:bunjs /app
 
-# Switch to non-root user
 USER astro
 
-# Expose the default Astro port
 EXPOSE 4321
-
-# Set environment variables
 ENV HOST=0.0.0.0
 ENV PORT=4321
 ENV NODE_ENV=production
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4321/ || exit 1
 
-# Start the server
-CMD ["node", "./dist/server/entry.mjs"]
+# Run the Astro Node adapter server with Bun
+CMD ["bun", "run", "./dist/server/entry.mjs"]
