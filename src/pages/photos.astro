@@ -1,0 +1,180 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getAlbumsSync, type Album } from '../data/albums-loader';
+
+const { albums, lastUpdated, source } = getAlbumsSync();
+
+// Check if we have legacy data with year/country info
+const hasLegacyData = albums.some(a => a.year && a.country);
+---
+
+<BaseLayout title="Photos" description="Travel photography from adventures around the world.">
+  <div class="container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold mb-4">Photos</h1>
+    <p class="text-base-content/70 mb-8">
+      A collection of travel photography from my adventures around the world. Click on an album to view it on Google Photos.
+    </p>
+
+    {hasLegacyData ? (
+      <!-- Table view for legacy data with year/country/location structure -->
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full" id="photos-table">
+          <thead>
+            <tr>
+              <th class="cursor-pointer hover:bg-base-200" data-sort="year">
+                <span class="flex items-center gap-2">
+                  Year
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                </span>
+              </th>
+              <th class="cursor-pointer hover:bg-base-200" data-sort="country">
+                <span class="flex items-center gap-2">
+                  Country
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                </span>
+              </th>
+              <th class="cursor-pointer hover:bg-base-200" data-sort="location">
+                <span class="flex items-center gap-2">
+                  Location
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {albums.map((album) => (
+              <tr class="hover">
+                <td data-year={album.year}>{album.year}</td>
+                <td data-country={album.country}>{album.country}</td>
+                <td>
+                  <a 
+                    href={album.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="link link-primary flex items-center gap-2"
+                  >
+                    {album.location || album.title}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <!-- Card/grid view: cover image, title, date range -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {albums.map((album) => (
+          <a 
+            href={album.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="card bg-base-200 shadow-md hover:shadow-xl transition-shadow duration-200 group"
+          >
+            <figure class="aspect-video bg-base-300 overflow-hidden">
+              {album.coverImageUrl ? (
+                <img 
+                  src={album.coverImageUrl} 
+                  alt={album.title}
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center text-base-content/30">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+            </figure>
+            <div class="card-body p-4">
+              <h2 class="card-title text-base line-clamp-2">{album.title}</h2>
+              {album.dateRange && (
+                <p class="text-sm text-base-content/60">{album.dateRange}</p>
+              )}
+              {album.photoCount && !album.dateRange && (
+                <p class="text-sm text-base-content/60">{album.photoCount} photos</p>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+
+    <div class="mt-8 text-base-content/60 text-sm flex flex-wrap gap-4">
+      <p>{albums.length} photo albums{hasLegacyData && albums[0]?.country ? ` from ${new Set(albums.map(a => a.country).filter(Boolean)).size} countries` : ''}</p>
+      {lastUpdated && (
+        <p>Last updated: {new Date(lastUpdated).toLocaleDateString()}</p>
+      )}
+      {source === 'fallback' && (
+        <p class="text-warning">(Using fallback data - add URLs to src/data/photo-album-urls.ts and run <code class="text-xs">npm run fetch-albums</code>)</p>
+      )}
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  // Simple table sorting
+  document.addEventListener('DOMContentLoaded', () => {
+    const table = document.getElementById('photos-table');
+    if (!table) return;
+
+    const headers = table.querySelectorAll('th[data-sort]');
+    const tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    let currentSort = { column: '', direction: 'asc' };
+
+    headers.forEach((header) => {
+      header.addEventListener('click', () => {
+        const column = header.getAttribute('data-sort');
+        if (!column) return;
+
+        // Toggle direction if same column
+        if (currentSort.column === column) {
+          currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          currentSort.column = column;
+          currentSort.direction = 'asc';
+        }
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        rows.sort((a, b) => {
+          let aVal = '';
+          let bVal = '';
+
+          if (column === 'year') {
+            aVal = a.querySelector('[data-year]')?.getAttribute('data-year') || '';
+            bVal = b.querySelector('[data-year]')?.getAttribute('data-year') || '';
+          } else if (column === 'country') {
+            aVal = a.querySelector('[data-country]')?.getAttribute('data-country') || '';
+            bVal = b.querySelector('[data-country]')?.getAttribute('data-country') || '';
+          } else if (column === 'location') {
+            aVal = a.querySelector('a')?.textContent?.trim() || '';
+            bVal = b.querySelector('a')?.textContent?.trim() || '';
+          }
+
+          const comparison = aVal.localeCompare(bVal);
+          return currentSort.direction === 'asc' ? comparison : -comparison;
+        });
+
+        rows.forEach((row) => tbody.appendChild(row));
+      });
+    });
+  });
+
+  // Re-initialize on Astro view transitions
+  document.addEventListener('astro:after-swap', () => {
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+  });
+</script>

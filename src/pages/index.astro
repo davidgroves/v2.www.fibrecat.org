@@ -1,0 +1,49 @@
+---
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import HeadShot from '../assets/DavidGroves.jpg';
+---
+
+<BaseLayout>
+  <div class="container mx-auto px-4 py-12 lg:py-16">
+    <!-- Hero Section -->
+    <section class="hero min-h-0">
+      <div class="hero-content flex-col lg:flex-row-reverse gap-8 lg:gap-16">
+        <div class="avatar">
+          <div class="w-48 lg:w-72 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4 shadow-2xl">
+            <Image 
+              src={HeadShot} 
+              alt="David Groves" 
+              class="rounded-full"
+              width={288}
+              height={288}
+            />
+          </div>
+        </div>
+        <div class="text-center lg:text-left max-w-2xl">
+          <h1 class="text-4xl lg:text-6xl font-bold">David Groves</h1>
+          <p class="py-6 text-lg lg:text-xl text-base-content/80">
+            A multidisciplinary IT professional having worked as a <strong>Network Architect</strong>, 
+            <strong>Software Engineer</strong>, and <strong>Platform Engineer</strong>. 
+            By hobby, a traveller, photographer, and greyhound lover.
+          </p>
+          <div class="flex flex-wrap gap-4 justify-center lg:justify-start">
+            <a href="/blog" class="btn btn-primary btn-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+              </svg>
+              Read Blog
+            </a>
+            <a href="/photos" class="btn btn-secondary btn-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="3.2" />
+                <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z" />
+              </svg>
+              View Photos
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>

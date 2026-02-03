@@ -1,0 +1,107 @@
+---
+title: Neomutt for Gmail
+description: Text based email in 2025.
+pubDate: 31 March 2025
+heroImage: ../../assets/blog/LaptopEmail.jpeg
+heroCredit: Solen Feyissa @ Unsplash
+heroLink: https://unsplash.com/photos/macbook-pro-on-black-textile-TaOGbz_S-Qw
+heroAltText: A mac laptop running a web browser and gmail
+---
+
+import { Image } from 'astro:assets';
+
+## Mutt for Gmail.
+
+This is a simple guide to setting up [neomutt](https://neomutt.org/) for [gmail](https://mail.google.com/). It is a set of instructions for doing this on [Debian 12](https://www.debian.org/releases/bookworm/).
+
+Doing this on your own system may vary, but it should be possible to follow the instructions on other systems as well.
+
+You may want to do this if you want to participate in the [linux kernel development mailing lists](https://lore.kernel.org/lkml/) or the [IETF mailing lists](https://www.ietf.org/mailman/listinfo/).
+
+## Setup in gmail.
+
+1. Go to [console.developers.google.com](https://console.developers.google.com/)
+1. Create a new project if needed. You can call it anything, but I'd use "Neomutt Registration".
+1. Go to the "Library" tab on the left, and enable the "Gmail API".
+1. In "Branding" on the left, make the app name "Neomutt".
+1. Go back to [console.developers.google.com](https://console.developers.google.com/).
+1. Search for "credentials" in the search bar.
+1. Create a new "OAuth client ID".
+1. Select "Create credentials" at the top, and pick "Create OAuth client ID".
+1. Select "Desktop application" in the "Application type" dropdown.
+1. In "Name", enter "Neomutt".
+1. Note the "Client ID" in the "Additional information" section on the right.
+1. Also note the "Client Secret" in the "Client secrets" section below it on the right.
+1. Click "Create" or "Save".
+
+### Installing the packages.
+
+Install mutt from the Debian repos.
+
+```bash
+sudo apt install mutt urlview isync notmuch gpg
+```
+
+If you need some bleeding edge feature, build from source from the [github project](https://github.com/neomutt/neomutt)
+
+### Setup gpg.
+
+If you haven't done anything with gpg before, you will need to setup your gpg key.
+
+```bash
+gpg --full-generate-key
+```
+
+You will want to keep this key safe and back it up. The following commands will print everything you should backup.
+
+```bash
+gpg --export --armor $EMAIL_ADDRESS > /tmp/id.pub.asc
+gpg --export-secret-key --armor $EMAIL_ADDRESS > /tmp/id.priv.asc
+gpg --export-secret-subkeys --armor $EMAIL_ADDRESS > /tmp/id.sub_priv.asc
+gpg --export-ownertrust > /tmp/ownertrust.txt
+```
+
+To reimport you would use.
+
+```bash
+gpg --import id.pub.asc
+gpg --import id.priv.asc
+gpg --import id.sub_priv.asc
+gpg --import-ownertrust ownertrust.txt
+gpg --edit-key $EMAIL_ADDRESS # and set your key to ultimate trust
+```
+
+### Setting up oauth2.
+
+1. Get a copy of mutt_oauth2.py from [github](https://github.com/neomutt/neomutt/blob/master/contrib/oauth2/mutt_oauth2.py).
+2. Run it with the following arguments. CLIENT_ID and CLIENT_SECRET from when you setup the gmail client.
+
+```bash
+python mutt_oauth2.py --authorize tokenfile ---protocol imap --client-id $CLIENT_ID --client_secret $CLIENT_SECRET --provider google --email $EMAIL_ADDRESS tokenfile
+```
+
+This will generate a file called `tokenfile` in the current directory. This file contains the oauth2 token that you need to use with neomutt.
+
+### Setting up your config.
+
+Create your configuration in the xdg config location neomutt will look for it. Neomutt looks for user config in several places,
+following [this hierarchy](https://neomutt.org/guide/configuration.html#1-2-%C2%A0location-of-user-config-files).
+
+You can find my example config at [github](https://github.com/davidgroves/dotfiles/tree/master/config/neomutt).
+
+Note, you should copy the example config to your own config, and then edit it to suit your needs. Also copy the [private.example.muttrc](https://github.com/davidgroves/dotfiles/blob/master/config/neomutt/private.example.muttrc), rename it to private.muttrc and add your own details to it.
+
+## Adding the oauth config to neomutt.
+
+You will need to add the following to your neomutt private config.
+
+```
+set imap_authenticators="oauthbearer:xoauth2"
+set imap_oauth_refresh_command="/path/to/script/mutt_oauth2.py /path/to/tokenfile"
+
+set smtp_authenticators=${imap_authenticators}
+set smtp_oauth_refresh_command=${imap_oauth_refresh_command}
+```
+
+Finally, note the token needs to be kept private. It is time limited, and every hour without use will require you to reauthorise it, but someone
+that steals your token will be able to use it for that hour, without your google password or 2FA.

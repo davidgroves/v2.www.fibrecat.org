@@ -1,0 +1,31 @@
+services:
+  fibrecat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4321:4321"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4321/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Development mode with hot reload
+  dev:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "4321:4321"
+    command: sh -c "npm install && npm run dev -- --host"
+    profiles:
+      - dev

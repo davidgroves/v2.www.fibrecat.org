@@ -1,0 +1,162 @@
+---
+title: LLDP (Link Layer Discovery Protocol)
+description: LLDP in Datacentres
+pubDate: 03 November 2023
+heroImage: ../../assets/blog/messy-datacentre.jpeg
+heroCredit: Massimo Botturi @ Unsplash
+heroLink: https://unsplash.com/photos/zFYUsLk_50Y
+heroAltText: A datacentre rack with messy cabling
+---
+
+import { Image } from 'astro:assets';
+import TwoRoutersAndASwitch from '../../../src/assets/blog/TwoRoutersAndASwitch.png';
+
+## What is LLDP ?
+
+The TLDR version: Devices emit beacons that say who they are. These beacons go as far as the nearest Layer2 bridge.
+
+The [Juniper Summary of LLDP](https://www.juniper.net/documentation/us/en/software/junos/multicast-l2/topics/concept/layer-2-services-lldp-overview.html)
+is a good simple explanation. Perhaps a simpler one is it involves hardware using it sending out a beacon frame identifying themselves every so many seconds, and other hardware reading that and noting it. It was invented as a common,
+open standards replacement for [Cisco CDP](https://learningnetwork.cisco.com/s/article/cisco-discovery-protocol-cdp-x) and other proprietary protocols.
+
+These Layer2 discovery protocols were originally designed for use by switches and routers, and could allow quicky and easy verification that everything was connected as expected.
+
+## How is it normally used ?
+
+<Image src={TwoRoutersAndASwitch} alt="A diagram showing Router1 connected to both Switch1 and Switch2" class="center" />
+
+For example, on most Cisco switches, you could configure Router1 like.
+
+```
+hostname Router1
+lldp run
+!
+interface GigabitEthernet0/1
+  description Link to Switch1
+  lldp transmit
+!
+```
+
+And on Switch1
+
+```
+hostname Switch1 
+lldp run
+!
+interface GigabitEthernet0/2
+  description Link to Router1
+  lldp recieve
+!
+```
+
+Then, on switch1 you could use LLDP to show Router1 is connected.
+This is usually also going to be avaliable via SNMP or other router management API's.
+An example to show it on the CLI is :-
+
+```
+# show lldp neighbors
+INDEX   PORT   DEVICEID          PORT     NAME    CAPABILITIES TTL
+----------------------------------------------------------------------
+1       gi0/1  aa:bb:cc:dd:ee:ff Gi1/0/31 Router1 Bridge       93
+```
+
+## Security Implications.
+
+Across my career I've heard numerous claims that LLDP and other similar protocols are security risks.
+By default, they do indeed provide extra information to an attacker. This can include what type of
+device they are connected to and what operating system and version it is running.
+
+This does indeed break the general rule of not leaking extra information. However, it also 
+provides significant benefits, some of which can also be security benefits. You can easily tell
+if a device has been physically recabled, and you can confirm devices are cabled as designed, rather
+than merely in a way which works.
+
+I think it is unwise to say LLDP is a security benefit or risk, but rather to consider the individual
+circumstances of your deployment.
+
+## Transmitting LLDP on Unix Systems.
+
+Three main options.
+- [lldpd](https://lldpd.github.io/) - My prefered option.
+- [ladvd](https://github.com/sspans/ladvd/) - Another good option.
+- [systemd](https://www.freedesktop.org/software/systemd/man/systemd.network.html) - Generally a no-install option.
+
+The first two are standlone daemons, and can be configured quite flexibly. They also support
+proprietary protocols like CDP, EDP and the like. The last option is built into systemd which ships with most Linux distributions these days.
+
+```
+# Contents of /etc/systemd/network/lldp.conf
+LLDP=true                   # recieve LLDP
+EmitLLDP=nearest-bridge     # send LLDP
+```
+
+If you are using networkmanager, instead use.
+
+```
+$ sudo nmcli connection
+<note the name of the connection you want to add LLDP for>
+$ sudo nmcli connection modify <connection name> connection.lldp 1
+```
+
+## Transmitting LLDP on Windows Systems.
+
+You need to install the optional LLDP agent features. On my Windows 11 system, this was. There are limited
+options to configure this agent.
+
+```
+# Run in a Administrator Powershell.
+
+PS> Add-WindowsCapability -online -Name Rsat.LLDP.Tools~~~~0.0.1.0
+```
+
+### Reading LLDP with tcpdump.
+
+You can use tools, but even if you aren't running a LLDP/CDP listener 
+you can just packet capture and see if anyones sending you anything.
+
+```
+# Dump LLDP packets
+$ tcpdump -n -v -i $INTERFACE ether[12:2]=0x88cc
+14:45:01.218838 LLDP, length 218
+	Chassis ID TLV (1), length 7
+	  Subtype MAC address (4): c8:7f:54:02:5e:fd
+	Port ID TLV (2), length 7
+	  Subtype MAC address (3): c8:7f:54:02:5e:fd
+	Time to Live TLV (3), length 2: TTL 120s
+	System Name TLV (5), length 9: localhost
+	System Description TLV (6), length 105
+	  Debian GNU/Linux trixie/sid Linux 6.8.12-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.8.12-1 (2024-05-31) x86_64
+	System Capabilities TLV (7), length 4
+	  System  Capabilities [Bridge, WLAN AP, Router, Station Only] (0x009c)
+	  Enabled Capabilities [Bridge, WLAN AP, Router] (0x001c)
+	Management Address TLV (8), length 12
+	  Management Address length 5, AFI IPv4 (1): 192.168.0.18
+	  Interface Index Interface Numbering (2): 2
+	Management Address TLV (8), length 24
+	  Management Address length 17, AFI IPv6 (2): fd31:1623:5d00:4625:ca7f:54ff:fe02:5efd
+	  Interface Index Interface Numbering (2): 2
+	Port Description TLV (4), length 6: enp7s0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  Link aggregation Subtype (3)
+	    aggregation status [supported], aggregation port ID 0
+	Organization specific TLV (127), length 9: OUI IEEE 802.3 Private (0x00120f)
+	  MAC/PHY configuration/status Subtype (1)
+	    autonegotiation [supported, enabled] (0x03)
+	    PMD autoneg capability [10BASE-T hdx, 10BASE-T fdx, 100BASE-TX hdx, 100BASE-TX fdx, Pause for fdx links, 1000BASE-T fdx] (0xec81)
+	    MAU type 1000BASET fdx (0x001e)
+	End TLV (0), length 0
+
+
+# Dump LLDP or CDP packets
+$ tcpdump -n -v -i $INTERFACE '(ether[12:2]=0x88cc or ether[20:2]=0x2000)'
+...
+```
+
+## My recommendations.
+
+- In general, I think the benefits of running LLDP on all hosts and network equipment outweighs the risks.
+- On physical environments for which I am responsible I always run `lldpd` on unix systems, or enable the Windows LLDP service,
+and configure the routers and switches to both emit and recieve lldp data.
+- You can use it for both ad-hoc troubleshooting, or for building a network map.
+- It is particularly useful for validating that the design and build of the network are the same.
+

@@ -1,0 +1,209 @@
+---
+title: Is This Safe to Install ?
+description: Why do we feel safe installing some things, but feel dirty installing others ?
+pubDate: 08 January 2024
+heroImage: ../../assets/blog/laptop_jolly_roger.jpeg
+heroCredit: Michael Geiger @ Unsplash
+heroLink: https://unsplash.com/photos/JJPqavJBy_k
+heroAltText: A set of letters in different typefaces on a wall.
+---
+
+import { Image } from 'astro:assets';
+
+## Some preamble.
+
+I'm specifically looking at if you should trust various installation methods, and the risks involved in each of them.
+I am assuming everything is being done "correctly" here, so for example all file downloads are via HTTPS with verified
+signatures, and where applicable [checksums](https://www.debian.org/doc/manuals/securing-debian-manual/deb-pack-sign.en.html)
+are verified for the files obtained.
+
+## Which of these actions is feels safe ?
+
+I asked a straw poll of bout 5 other network engineers, system engineers and software developers, which of
+of these methods they felt most "safe" using when installing some piece of new software on a Debian Based
+Linux distribution. In this statistically insignificant and totally selection biased based poll,  
+
+#### A. Feels nearly 100% safe.
+
+```
+#### Installing from the main Debian Repository
+$ sudo apt install firefox-esr
+```
+
+#### B. Feels mostly safe.
+
+```
+#### Installing from sources direct from major project.
+$ curl https://downloads.isc.org/isc/bind9/9.18.18/bind-9.18.18.tar.xz
+$ tar xf bind-9.18.18.tar.xz
+$ cd bind-9.18.18
+$ ./configure
+$ make
+$ sudo make install
+```
+
+#### C. Feels less safe
+
+```
+#### Installing VSCode from a 3rd party Repository
+$ wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+$ sudo install -D -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/packages.microsoft.gpg
+```
+
+#### D. Feels dangerous
+
+```
+#### Running install script
+$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+---
+
+
+## How dangerous are each of these things ?
+
+#### A. The Debian Package install.
+
+```
+#### Installing from the main Debian Repository
+$ sudo apt install firefox-esr
+```
+
+Everyone voted this to be the most safe option and I generally agree at least for important
+packages like firefox.
+
+It is important to realise that when installing 
+any package using `apt`, or `rpm` or most other unix package manager systems, you are in effect installing 
+arbitary code that could run at any privilege level, and could in principle replace any binary
+on your system with a bad one. You can do some things to mitigate these risks.
+
+For example before installing a package, you can look at what will be installed :-
+
+```
+$ sudo apt install --download-only firefox-esr
+$ dpkg -c /var/cache/apt/archives/firefox-esr_115.2.0esr-1_amd64.deb
+drwxr-xr-x root/root         0 2023-08-29 22:03 ./usr/bin/
+-rwxr-xr-x root/root       118 2023-08-29 22:03 ./usr/bin/firefox
+lrwxrwxrwx root/root         0 2023-08-29 22:03 ./usr/bin/firefox-esr -> ../lib/firefox-esr/firefox-esr
+...
+```
+
+So that sounds scary, why do I agree it is the safest option. Well, it is something like what
+[Eric Raymond](https://en.wikipedia.org/wiki/Eric_S._Raymond) 
+named [Linus' Law](https://en.wikipedia.org/wiki/Linus%27s_law) in his 1997 essay,
+[The Cathedral and the Bazaar](https://en.wikipedia.org/wiki/The_Cathedral_and_the_Bazaar). In
+that essay he says that many eyes make bugs shallow, and that being able to watch the development
+process happen in public means people will find these bugs.
+
+I think the odds of this happening with a big and popular Debian package like Firefox is quite low.
+In fact, to my knowledge no Debian package that comes from the official repositories has ever 
+shipped Malware.
+
+That doesn't mean it hasn't happened in other linux distributions though. [Gentoo Linux](https://www.gentoo.org/) 
+shipped a trojan'd version of the [unrealircd IRC server](https://www.unrealircd.org/). 
+You can see the details of this at this [bug report](https://bugs.gentoo.org/323691).
+
+It is also true that while not strictly speaking Malware, and never having shipped in an
+actual production release, but only beta builds, bugs have been shipped in official packages that would
+destroy systems. I find this [bug](https://bugzilla.redhat.com/show_bug.cgi?id=1202858)
+in a beta of the [Squid web cache](http://www.squid-cache.org/) for 
+[RedHat Enterprise Linux](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux).
+
+<blockquote>
+Steps to Reproduce:
+1. Login to RHEL 6.7 beta host with squid installed
+2. Start squid using `sudo service squid start`
+3. Restart squid using `sudo service squid restart`
+
+Expected results: Squid is restarted.
+
+Actual results: All files are deleted on the machine.
+</blockquote>
+
+While this wouldn't be malware in the way most people define it, the results certainly would be similar to some malware !
+
+#### B. The install from source.
+
+```
+#### Installing from sources direct from major project.
+$ curl https://downloads.isc.org/isc/bind9/9.18.18/bind-9.18.18.tar.xz
+$ tar xf bind-9.18.18.tar.xz
+$ cd bind-9.18.18
+$ ./configure
+$ make
+$ sudo make install
+```
+
+In some ways, I would say this is MORE secure than the Debian package. The artifact you are installing is
+always in source code form, so there is no need to check the binary you are installing is 
+[reproducable](https://nocomplexity.com/documents/securityarchitecture/prevention/reproduciblebuilds.html)
+by the source code in the [Debian source package](https://wiki.debian.org/Packaging/SourcePackage).
+
+You of course have to be concerned about your compiler being bad. [Ken Thompson](https://en.wikipedia.org/wiki/Ken_Thompson),
+one of the computer scientist with the strongest resume, being at least partly responsible for [UNIX](https://en.wikipedia.org/wiki/Unix),
+[UTF-8](https://en.wikipedia.org/wiki/UTF-8) and the [Go programming language](https://go.dev/), wrote about this in a 
+[1984 paper](https://www.cs.cmu.edu/~rdriley/487/papers/Thompson_1984_ReflectionsonTrustingTrust.pdf).
+
+However you had this fear in the case of the binary package, it just wasn't YOUR compiler you needed to worry about, but
+the compiler on whatever system built the binary. The person that built the package may in principle at least be creating
+malware without even knowing it, just as you might if you have a dirty compiler.
+
+#### C. Installing from a 3rd party repository.
+
+```
+#### Installing VSCode from a 3rd party Repository
+$ wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+$ sudo install -D -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/packages.microsoft.gpg
+```
+
+Should you trust third party repo's less than the official operating system repos ?. I do not believe that just because a package
+comes from a third party repo it is inheritently less trustworthy. In fact, I'd be inclined to trust a major package like
+[VSCode](https://github.com/microsoft/vscode) from Microsoft over a more obscure Debian package that came directly from the
+main Debian repo.
+
+Microsoft have a [process to contribute to VSCode](https://github.com/microsoft/vscode/wiki/How-to-Contribute), and it should
+be quite challenging to get unreviewed malicious code into the source tree, and therefore into the binaries you would download.
+
+I would say that you are safer installing something like VSCode than you are something like say 
+[Weborf](https://ltworf.github.io/weborf/). I have no reason at all to suspect that 
+[Salvo 'LtWorf' Tomaselli](https://ltworf.github.io/) is a bad guy, but if he was, or if someone compromised his computer systems,
+that would be all it would take to compromise both the source code for this project on github or the binary Debian package
+that he maintains.
+
+#### D. Installing from a script.
+
+```
+#### Running install script
+$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+This looks pretty damn dangerous at face value. You are grabbing a shell script from the internet and just blindly executing it.
+However, I'll say this is significantly less dangerous than it looks. Firstly, you can choose to not pipe the results into `sh`, and
+download and examine the shell script for sanity. Secondly, unlike the other three processes here, this only runs as your user.
+Assuming you have a default sudo configuration, and haven't used sudo recently, if the shell script tries to run as root you
+are going to face a password prompt. It can still do a bunch of nastyness, but only whatever your user could do. Of course a 
+bad actor with full control of a user account that is in the wheel group or can use sudo isn't that far away from 
+gaining root access anyway.
+
+## Further Problems.
+
+This specifically has talked about things that are either going to ship as OS packages, or might do if you didn't decide to
+compile them from source, or install them from a different sources.
+
+There is significantly more to say about other sources of software, specifically those from langauge specific package
+management systems such as [pypi for Python](https://pypi.org/) or [NPM for Javascript](https://www.npmjs.com/). How to safely
+manage installs from those ecosystems is an entire article to itself.
+
+## Takeaway.
+
+There is no such thing as a 100% safe install, but hopefully this blog post has given you some things to think about when deciding
+if you should use something or not.
+
+Don't take a kneejerk reaction to a particular install method. Think about the actual risks involved, what privilege level you will
+execute any code at, how many people will have been involved in the review of the code you are fetching and executing, how well
+managed and reviewed the process is for the packages creation.
+
+Also consider your paranoia level. If you work at Redhat and maintain build servers, you should 100% be worried about backdoored compilers.
+Bad actors have a lot to gain from compromising a build systems compiler. If you have just installed an OS from an ISO image, I would worry
+significantly less about it. It is unlikely your compiler is backdoored, or if it is, so is everyone elses that is using that distribution
+and that will no doubt be discovered rather quickly. You might have a mess to clean up, but you should know about that mess.

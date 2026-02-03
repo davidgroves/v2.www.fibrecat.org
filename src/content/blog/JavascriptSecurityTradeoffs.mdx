@@ -1,0 +1,152 @@
+---
+title: Some Security Tradeoffs in Javascript Land. 
+description: A look at security tradeoffs through the lens of how javascript loads scripts.
+pubDate: 01 July 2024
+heroImage: ../../assets/blog/JSPadlockLogo.png
+heroCredit: Stable Diffusion (AI Generated).
+heroLink: https://stability.ai/
+heroAltText: A padlock with the letters JS on it as a logo.
+---
+import { Image } from 'astro:assets';
+
+## No win situaions in security.
+
+Some security situations simply don't have a "correct" answer. You are working with a series of tradeoffs and you have to make a decision. Sometimes these are security vs useabilty tradeoffs, but sometimes they are straight up exchanges of one security risk for another.
+
+## Blog inspiration.
+
+This blog was inspired by the recent security issue created by the [Polyfill.io Supply Chain Attack](https://blog.qualys.com/vulnerabilities-threat-research/2024/06/28/polyfill-io-supply-chain-attack). The projects original creator [says to stop using it](https://x.com/triblondon/status/1761852117579427975).
+
+In summary, there was a javascript library that was popular and used by thousands of websites. The domain name used most commonly to distribute it was sold to a Chinese company, and they added malware to the library.
+
+From the [c/side blog](https://cside.dev/blog/more-than-100k-websites-targeted-in-web-supply-chain-attack).
+
+```
+The domain was found injecting malicious code into devices via websites using 
+cdn.polyfill.io. The malicious code dynamically generates payloads based on HTTP 
+headers, activating only on specific mobile devices, evading detection, avoiding 
+admin users and delaying execution. The code is also obfuscated.
+
+In some instances, users receive tampered JavaScript files, which include a fake 
+Google Analytics link https://www.googie-anaiytics.com/gtags.js. This fake link 
+redirects users to various sports betting and pornographic websites, seemingly based
+on their region. But this being JavaScript, could at any moment introduce new
+attacks like formjacking, clickjacking, and broader data theft. 
+```
+
+## How are these scripts loaded ?
+
+There are a bunch of ways to load scripts onto webpages, but the four main ones I'll cover in this blog post are.
+
+1. Inline script.
+1. External script, hosted by you.
+1. External script, hosted by someone else, without a signature.
+1. External script, hosted by someone else, with a signature.
+
+## (1) Inline Script / External Script
+
+An inline script is literally just written directly into the HTML of the page. The `<script>` tag does not have a `src` attribute, and the script itself is inside the `script` tag.
+
+For example.
+
+```html
+<html>
+<head>
+    <title>Inline Script Example</title>
+</head>
+<body>
+    Check your console log for "Hello World"
+    <script>
+        console.log("Hello World");
+    </script>
+</body>
+</html>
+```
+
+When you load this page in a browser, if you check your javascript console, you will see the message "Hello World" logged to the console.
+
+## (2) External Script (Hosted by You)
+
+This puts the script into a seperate file, and uses the `src` attribute to point to that file.
+
+```html
+<html>
+<head>
+    <title>Inline Script Example</title>
+    <script src="helloworld.js"></script>
+</head>
+<body>
+    Check your console log for "Hello World"
+</body>
+</html>
+```
+
+```js
+// helloworld.js
+console.log("Hello World");
+```
+
+When you load this page in a browser, if you check your javascript console, you will see the message "Hello World" logged to the console.
+
+## (3) External Script (Hosted by someone else, without a signature)
+
+This is very similar to the previous example, but instead of a local file, we are using a URI to point to a remote file. This is a common way to load scripts from a CDN, or from a third party.
+
+In this case, if the person hosting the file changes the script, users of your page will automatically get the new version.
+
+```html
+<html>
+<head>
+    <title>Inline Script Example</title>
+    <script src="https://cdn.example.com/helloworld.js"></script>
+</head>
+<body>
+    Check your console log for "Hello World"
+</body>
+</html>
+```
+
+## (4) External Script (Hosted by someone else, with a signature)
+
+And this is exactly the same as the previous example, but with a digital signature as well.
+
+You can generate this digital signature with the following command.
+
+```shell
+$ echo sha384-`cat helloworld.js | openssl dgst -sha384 -binary | openssl base64 -A`
+sha384-sZJwshEYkxs4s6KZAs3v6ieOrso9qW0X4cRH5j9RXQfePhdjtSWFgKE0js3v82FD
+```
+
+```html
+<html>
+<head>
+    <title>Inline Script Example</title>
+    <script src="https://cdn.example.com/helloworld.js" integrity="sha384-sZJwshEYkxs4s6KZAs3v6ieOrso9qW0X4cRH5j9RXQfePhdjtSWFgKE0js3v82FD">
+</head>
+<body>
+    Check your console log for "Hello World"
+</body>
+</html>
+```
+
+Now when the browser loads the script, it will sign the javascript file it loads, and checks the signature against the one you provided in the script tag. If they match, the script will be loaded, otherwise it will not.
+
+## Security Problem 1: The maliciously modified script.
+
+Very clearly, in this example you are very vulnerable if you are using option (3), the third party CDN without the signature. This is exactly what the polyfill attack was. The script was modified to be malware, and this malware was loaded by everyone including it.
+
+Just because you are using one of the other options doesn't make you immune though. If you are dependant on third party code, and you don't actually check that code when you update to new versions of it, you are just as vunlerable. Of course you might have bought yourself a little time, and I know some people that avoided the polyfill attack simply because they saw they were locally hosting the script and saw the press around it before they would have updated it. (Honestly, I expected when they would have updated it to be never, but that is a different story).
+
+## Security Problem 2: The script has security vulnerabilities.
+
+In this case, lets imagine the scripts creator and distributor is entirely legitimate, but has a bug which causes a security vulnerability in the javascript code. Now, if you are using option (3), it goes from the worst option to the best option. When the bug is fixed in the CDN version you are now automatically using it and thus are not vulnerable.
+
+This does of course come with its own downsides. While you do indeed benefit from security patches to that script, you also suffer from bug causing regressions in that script. If you want to automatically trust a third parties updates is a matter of your level of trust in them, the complexity of the script, and the amount of effort you are able to spend auditing it.
+
+Sometimes you are also basically required to trust that third party. For example, with a service like Google Analytics, where you will be importing the google code, and if you don't keep up to date, your analytics service will stop working. So if you wnt to use Google Analytics, you basically just need to fully trust them.
+
+## So what is best ?
+
+The answer of course is "it depends". If the vulnerability you need to defend against is a supply chain attack, hosting yourself or using a signature will mitigate it. If the vulnerability is a code defect in the script itself, then "autoupdating" by including it without a signature from a CDN will mitigate it the moment the author publishes the fixed version.
+
+Since no option protects you from both, it really does come down to what your level of trust in the author is, how complex the script is and thus how likely you think it is to have bugs, 

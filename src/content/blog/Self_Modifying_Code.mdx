@@ -1,0 +1,299 @@
+---
+title: Self Modifying Code
+description: What is it, and can you use it today ?
+pubDate: 15 June 2024
+heroImage: ../../assets/blog/italian_dragon.jpeg
+heroCredit: Ravit Sages @ Unsplash
+heroLink: https://unsplash.com/photos/gXyptwjk9aw
+heroAltText: An italian statue of a dragon head
+---
+
+import { Image } from 'astro:assets';
+
+## What is self modifying code.
+
+It is like the name itself suggests, code which as part of what it is designed to do when you run it, modifies itself.
+
+It is basically a relic of the past, except perhaps in kernel development, or on embedded systems, and even then the costs almost certainly outweigh the benefits in most cases.
+
+## A REALLY bad high level example.
+
+This isn't self modifying code, but it gives you the jist of the idea in a high level language.
+
+This is Python that uses the [operator](https://docs.python.org/3/library/operator.html) standard library functions in
+order to swap in an operator based on changes in the state of the program. 
+
+This program will count up from 0 to 10, then count back down to 0 again and repeat this ad infinitum.
+
+```python
+import operator
+import time
+
+op = operator.add
+i = 0
+
+while True:
+    print(i)
+    time.sleep(0.2)
+    i = op(i, 1)
+    
+    if i >= 10:
+        op = operator.sub
+    if i <= 0:
+        op = operator.add
+```
+
+## A C example using function pointers.
+
+This does the same thing in C, but it uses function pointers to swap between the increment and decrement functions.
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+
+int i = 0;
+
+int increment(int x) {
+    return x + 1;
+}
+
+int decrement(int x) {
+    return x - 1;
+}
+
+int main(int argc, char **argv) {
+    /* Make a function pointer, starting out pointing at increment */
+    int (*op)(int);
+    op = increment;
+
+    while (1) {
+        printf("%d\n", i);
+        usleep(200 * 1000);
+        i = op(i);
+        if (i >= 10) {
+            op = decrement;
+        }
+        if (i <= 0) {
+            op = increment;
+        }
+    }
+}
+```
+
+Because we wrote this in C, we can prove that it is indeed not self modifying either by examining the assembly produced
+while compiling it. This however is quite complex, even for a trivial example like this. Compiling this program to assembly with 
+`$ gcc -O0 -S -o no_self_mod.asm no_self_mod.c` produces over 100 lines of AMD64 assembly. Expand the section below to view
+this assembly if you care.
+
+<details>
+  <summary>the AMD64 assembly for the C program above</summary>
+```
+  	.file	"no_self_mod.c"
+	.text
+	.globl	i
+	.bss
+	.align 4
+	.type	i, @object
+	.size	i, 4
+i:
+	.zero	4
+	.text
+	.globl	increment
+	.type	increment, @function
+increment:
+.LFB0:
+	.cfi_startproc
+	endbr64
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register 6
+	movl	%edi, -4(%rbp)
+	movl	-4(%rbp), %eax
+	addl	$1, %eax
+	popq	%rbp
+	.cfi_def_cfa 7, 8
+	ret
+	.cfi_endproc
+.LFE0:
+	.size	increment, .-increment
+	.globl	decrement
+	.type	decrement, @function
+decrement:
+.LFB1:
+	.cfi_startproc
+	endbr64
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register 6
+	movl	%edi, -4(%rbp)
+	movl	-4(%rbp), %eax
+	subl	$1, %eax
+	popq	%rbp
+	.cfi_def_cfa 7, 8
+	ret
+	.cfi_endproc
+.LFE1:
+	.size	decrement, .-decrement
+	.section	.rodata
+.LC0:
+	.string	"%d\n"
+	.text
+	.globl	main
+	.type	main, @function
+main:
+.LFB2:
+	.cfi_startproc
+	endbr64
+	pushq	%rbp
+	.cfi_def_cfa_offset 16
+	.cfi_offset 6, -16
+	movq	%rsp, %rbp
+	.cfi_def_cfa_register 6
+	subq	$32, %rsp
+	movl	%edi, -20(%rbp)
+	movq	%rsi, -32(%rbp)
+	leaq	increment(%rip), %rax
+	movq	%rax, -8(%rbp)
+.L8:
+	movl	i(%rip), %eax
+	movl	%eax, %esi
+	leaq	.LC0(%rip), %rax
+	movq	%rax, %rdi
+	movl	$0, %eax
+	call	printf@PLT
+	movl	$200000, %edi
+	call	usleep@PLT
+	movl	i(%rip), %eax
+	movq	-8(%rbp), %rdx
+	movl	%eax, %edi
+	call	*%rdx
+	movl	%eax, i(%rip)
+	movl	i(%rip), %eax
+	cmpl	$9, %eax
+	jle	.L6
+	leaq	decrement(%rip), %rax
+	movq	%rax, -8(%rbp)
+.L6:
+	movl	i(%rip), %eax
+	testl	%eax, %eax
+	jg	.L8
+	leaq	increment(%rip), %rax
+	movq	%rax, -8(%rbp)
+	jmp	.L8
+	.cfi_endproc
+.LFE2:
+	.size	main, .-main
+	.ident	"GCC"
+	.section	.note.GNU-stack,"",@progbits
+	.section	.note.gnu.property,"a"
+	.align 8
+	.long	1f - 0f
+	.long	4f - 1f
+	.long	5
+0:
+	.string	"GNU"
+1:
+	.align 8
+	.long	0xc0000002
+	.long	3f - 2f
+2:
+	.long	0x3
+3:
+	.align 8
+4:
+```
+</details>
+&nbsp;
+
+## Problems with self modifying code.
+
+I'm going to do a demo of self modifying code in a moment, but first I'm going to explain why I'm not doing it in a modern OS and a modern
+set of tools, with a modern dialect of assembly like x64 or ARM64.
+
+There are many reasons that self modifying code is considered harmful and or dangerous.
+
+1. It is **REALLY** hard to understand. Much more if you don't expect it. Even more if you have no idea of the concept. This is most certiainly the type of
+dirty programming technique you need to write comments around !
+
+2. Modern operating systems make it hard to use. Tools such as Microsoft Windows 
+[arbitary code guard](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/exploit-protection-reference?view=o365-worldwide#arbitrary-code-guard), 
+or Linux with [W^X](https://en.wikipedia.org/wiki/W%5EX), (Write XOR Execute, also sometimes called XD, DX, for Execute Bit Disable) are designed to prevent security problems by literally preventing self modifying code.
+
+The Linux kernel itself makes extensive use of self modification, as shown in 
+Evgeniy Paltsev's [presentation to the embedded linux conference in 2019](https://elinux.org/images/b/be/SelfModifyngCode-rc6-public-slides.pdf), you still shouldn't use this in the old school way of modifying code you are actually executing.
+
+## And Old School Example.
+
+This very old example uses an ancient CPU and dialect of assembly, as this is where I first learned this technique, and honestly it is the only place I have ever actually used it.
+
+This uses the [Masswerk 6502 simulator](https://www.masswerk.at/6502/assembler.html) to create and step through a program designed to do the same thing as the previous examples, but to do so in a real self modifying way.
+
+```
+LDX #$00    ; Load 0 into the X register
+mainloop:
+NOP         ; Do nothing, imagine this is the "print"
+INX         ; Increment X, this code ends up at location 0x0003.
+CPX #$0A    ; Compare X with 10.
+BEQ setdec  ; Jump to self mod if 10.
+CPX #$00    ; Compare X with 0.
+BEQ setinc  ; Jump to self mod if 0.
+JMP mainloop ; Go around loop again.
+
+setinc:
+LDY #$E8    ; Put the bits for the INX instruction in the Y register.
+STY $0003   ; Store this in the INX location in the main code, the third line.
+JMP mainloop  ; Jump back to main code.
+
+setdec:
+LDY #$CA    ; Put the bits for the DEX instruction in the Y register
+STY $0003   ; Store this in the INX location in the main code, the third line.
+JMP mainloop  ; Jump back to main code
+```
+
+To experiment with this yourself.
+
+1. Go to the [masswerk emulator](https://www.masswerk.at/6502/assembler.html)
+1. Paste in this assembly above into the "src" section.
+1. Click "Assemble".
+1. Click "Show in Emulator".
+1. Paste the object code into the RAM section, with "Strip Leading Addresses" ticked.
+1. Click "Load Memory".
+1. Click "Show Memory".
+1. Click "Live Update" for memory.
+1. Tick "Trace" so you can watch each instruction as it is executed. 
+1. Click "Continuous Run".
+
+Now you will be able to watch the value of the `XR` register  climb up from 0 to 10 (A) and back again
+over and over, just like the previous examples and it is doing so using self modifying code.
+
+You can watch the self modifying code working by looking at the first line of the memory. It toggles between these two states.
+
+```
+GOING UP:
+0000: A2 00 EA E8 E0 0A F0 0F
+
+GOING DOWN:
+0000: A2 00 EA CA E0 0A F0 0F` 
+```
+
+The `E8` instruction in 6502 assembler is [`INX`](http://www.6502.org/tutorials/6502opcodes.html#INX), and the `CA` instruction is [`DEX`](http://www.6502.org/tutorials/6502opcodes.html#DEX).
+
+
+The two "functions", setinc and setdec both add an one of these opcodes to the Y register, and then
+store this in the program code itself directly (at location 0003). 
+
+This is still a bit of a contrived example, but it gives the jist of the idea. Back in the 8bit and 16bit days, these techniques were used to optimise code, particularly in games.
+
+You will find plenty of cases of them in 6502 code, 
+
+## Takeaways
+
+Self modifying code is mostly a relic of the past, except in kernel development, or 
+on embedded systems. These are certainly not things I do much of day to day or have much
+experience with.
+
+However, if you did need a brief introduction to the concept of self modifying code, I hope this blog post helped.

@@ -1,0 +1,198 @@
+---
+title: Software Testing for Non Engineers
+description: What do software developers mean by testing ?
+pubDate: 04 August 2023
+heroImage: ../../assets/blog/software_testing.jpeg
+heroCredit: Chrsitina @ Unsplash
+heroLink: https://unsplash.com/photos/FVgECvTjlBQ
+heroAltText: A software engineer editing code on a laptop.
+---
+
+import { Image } from 'astro:assets';
+import software_testing from '../../../src/assets/blog/software_testing.jpeg';
+
+## My summary of software testing.
+
+1. It is using software to test and validate other software.
+1. You make the tests either before, or alongside, writing the software itself.
+1. You run the tests after every modification to the software, to check for regressions (things that used to work that now don't).
+1. The tests are as much to make developing the software easier as they are to ensure the finished product is correct.
+
+## Why am I writing this ?
+
+I recently was involved in a meeting with a senior (both in age and position) manager who was now responsible
+for managing a team of software engineers. This is despite having spent over 20 years in the field of accountancy and 
+finance and self describing himself as having never touched anything to do with software engineering than the odd
+complex excel macro and some BBC basic he wrote at school in the 1980's.
+
+This article is written exactly for that audiance, someone who has limited to zero experience in the IT field,
+but who needs a quick overview of what software testing is and how it is done.
+
+This won't go into any real detail. The full field of automated software testing is a large and complex field, 
+with a variety of opinions, this really is a 101 style introduction to what engineers are actually doing.
+
+## Misconceptions.
+
+The first misconception he held was you write software, then you test it, and then it is done. The analogy
+he used was you might build a car headlight, a switch, and test that pressing the switch turns on the headlight. This
+is a reasonable approximation of a unit test in software engineering, although if you were testing a headlight you wouldn't
+want to use a real switch, but just "poke" the headlight the way a real switch would in the test.
+
+## A Software Example
+
+Here is a simple example in Python of light switch class.
+
+```python
+class Headlight:
+    def __init__(self):
+        self.is_on = False
+    
+    def on(self):
+        self.is_on = True
+        
+    def off(self):
+        self.is_on = False
+        
+    def toggle(self):
+        self.is_on = not self.is_on
+```
+
+This lets you create Headlights, set them to be on with `on()`, which will change them from off -> on if it was off, or
+just leave it on if it already was on. `off()` does the same in the other direction, and `toggle()` changes the state from
+off -> on or on -> off. You can formalise this description of what a Headlight does by making code that tests these
+behaviours. For example.
+
+```python
+def test_headlight_defaults_off():
+    headlight = Headlight()
+    assert headlight.is_on is False
+    
+def test_headlight_turned_on():
+    headlight = Headlight()
+    headlight.on()
+    assert headlight.is_on is True
+    
+def test_headlight_turned_on_twice():
+    headlight = Headlight()
+    headlight.on()
+    headlight.on()
+    assert headlight.is_on is True
+
+def test_headlight_turned_on_then_off():
+    headlight = Headlight()
+    headlight.on()
+    headlight.off()
+    assert headlight.is_on is False
+
+def test_headlight_turned_toggled_once():
+    headlight = Headlight()
+    headlight.toggle()
+    assert headlight.is_on is True
+
+def test_headlight_turned_toggled_twice():
+    headlight = Headlight()
+    headlight.toggle()
+    headlight.toggle()
+    assert headlight.is_on is False
+
+def test_headlight_turned_toggled_thrice():
+    headlight = Headlight()
+    headlight.toggle()
+    headlight.toggle()
+    headlight.toggle()
+    assert headlight.is_on is True
+```
+
+So now we have a working Headlight, with automatic tests that confirm the on/off/toggle buttons do what we expect. You could decide to add more
+tests, for example checking that pressing the on button, then toggling results in it becoming off.
+
+```python
+def test_headlight_on_then_toggle():
+    headlight = Headlight()
+    headlight.on()
+    headlight.toggle()
+    assert headlight.is_on is False
+```
+
+These tests can be run with an automatic tool, and the computer can check they all pass.
+
+```
+$ pytest example.py
+collected 8 items
+8 passed in 0.00s
+```
+
+## Why this is useful.
+
+So far, this doesn't sound that different from the analogy. We have a headlight, we can test the controls for it work as expected to turn it
+on and off. Where this really starts to come in useful is we can check this STILL works as expected as we add additional functionality,
+or add new ways to control the headlights.
+
+Suppose we add two common features seen in modern car headlights. We want to add full/half beam controls, and we want to add an new
+automatic setting which uses ambient light sensors to turn the headlights on and off automatically.
+
+If you for example changed the `is_on` from just True/False to a `status` flag, with three states and forgot about the toggle function,
+your tests would fail and you would know you have more work to do. For example, this it might be quite natural to update this to.
+
+```python
+import enum
+
+class Headlight_State(enum.Enum, str):
+    FULL_BEAM = "full_beam"
+    HALF_BEAM = "half_beam"
+    OFF = "off"
+
+class Headlight:
+    def __init__(self):
+        self.state = Headlight_State.OFF
+    
+    def on(self):
+        self.state = Headlight_State.FULL_BEAM
+    
+    def half_beam(self):
+        self.state = Headlight_State.HALF_BEAM
+    
+    def off(self):
+        self.state = Headlight_State.OFF
+        
+    def toggle(self):
+        self.state = not self.state
+        
+    @property
+    def is_on(self):
+        return False if self.state == Headlight_State.OFF else True
+```
+
+But `toggle()` now makes no sense. `True` and `False` have obvious negations, but the tri-state of the new `Headlight_State` does not.
+If you make these changes and run the tests, you get failures such as
+
+```
+    def test_headlight_turned_toggled_twice():
+        headlight = Headlight()
+        headlight.toggle()
+        print(headlight.state)
+        headlight.toggle()
+        print(headlight.state)
+>       assert headlight.is_on is False
+E       assert True is False
+E        +  where True = <foo.Headlight object at 0x7fd2650f7910>.is_on
+```
+
+Now it is clear to the software engineer that there is something that used to work, which now doesn't, and they can quickly figure out
+where to investigate and what to fix.
+
+## Summary
+
+Software testing isn't fullproof. As with almost any type of testing, it is only as good as what you test for and how accurate you make
+those tests.
+
+However, good accurate tests both improve the quality of the outcome, in terms of releasing code with fewer bugs, but also dramatically
+improve the expreience and productivity of the software engineer. They can work faster, having more confidence the changes they are
+making aren't impacting other areas of the project.
+
+Software testing is a deep field, with a lot of anciliary topics, techniques, methods and controversies. The industry doesn't agree
+on the correct way to do it, and not all people even think it should be done at all, but I strongly believe in using it in this
+way on the kinds of projects I work on.
+
+I hope if you read this and were in a similar position to my manager, you now have at least a basic understanding and will be able
+to google your way to even more understanding if you need to.

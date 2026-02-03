@@ -1,0 +1,49 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout title="Blog" description="Technical articles on networking, software engineering, and more.">
+  <div class="container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold mb-8">Blog</h1>
+    
+    {posts.length === 0 ? (
+      <div class="alert alert-info">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>No blog posts yet. Check back soon!</span>
+      </div>
+    ) : (
+      <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+          <thead>
+            <tr>
+              <th class="w-32">Date</th>
+              <th>Title</th>
+            </tr>
+          </thead>
+          <tbody>
+            {posts.map((post) => (
+              <tr class="hover">
+                <td class="text-base-content/70">
+                  <FormattedDate date={post.data.pubDate} />
+                </td>
+                <td>
+                  <a href={`/blog/${post.id}`} class="link link-hover link-primary font-medium">
+                    {post.data.title}
+                  </a>
+                  <p class="text-sm text-base-content/60 mt-1">{post.data.description}</p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+</BaseLayout>

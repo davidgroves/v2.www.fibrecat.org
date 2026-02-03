@@ -1,0 +1,138 @@
+---
+title: Installing Llama3 on Linux
+description: How to install the Llama3 LLM from Meta on a Linux System.
+pubDate: 22 April 2024
+heroImage: ../../assets/blog/llama.jpeg
+heroCredit: Sébastien Goldberg @ unsplash.com
+heroLink: https://unsplash.com/photos/white-llama-on-brown-grass-field-during-daytime-xgQZ1rXbYa4
+heroAltText: A llama in a field.
+---
+
+import { Image } from 'astro:assets';
+
+## What is Llama3 ?
+
+[Llama3](https://llama.meta.com/llama3/) is an [Open Source](https://opensource.org/), [Large Language Model](https://en.wikipedia.org/wiki/Large_language_model) from [Meta](https://about.meta.com/uk/).
+
+It is similar to the much more famous [OpenAI](https://openai.com/) [ChatGPT](https://openai.com/chatgpt).
+
+## Why would you want it ?
+
+Lots of reasons, but mostly so you can locally get ChatGPT like answers to questions, without the need for the internet, any per-use costs or subscriptions fees.
+
+I was installing it as part of a work project to translate intense numerical datasets into human readable reports.
+
+I built the [ollama](https://ollama.com/) "LLM Manager" software from source, as I needed to make some tweaks.
+
+## Install.
+
+This is exactly what worked for me, with the following setup. Your mileage may vary with different systems and setups.
+
+1. Debian12
+1. Nvidia RTX 4080 with Nvidia closed source linux drivers.
+
+Confirm your nvidia card is detected with 
+
+```
+$ nvidia-smi
+```
+
+Critically, the top line must have a CUDA version in it, like `NVIDIA-SMI 535.161.08 Driver Version: 535.161.08   CUDA Version: 12.2`.
+If you aren't running this succesfully, solve your Nvidia install issues before continuing.
+
+Then install packages needed to build ollama from.
+
+```
+$ sudo apt install golang cmake ninja-build cmake-doc cmake-format bzr build-essential git curl
+```
+
+Clone the ollama repo.
+
+```
+$ git clone git@github.com:ollama/ollama.git
+```
+
+Build it.
+
+```
+$ cd ollama
+$ go generate ./...
+$ go build
+```
+
+Then test it, and download the llama3 model. This will download a very large file and might take a bit of time.
+
+```
+# In Terminal1
+$ ollama serve
+
+# In Terminal2
+$ ollama run llama3
+> Test Commands.
+# Use CTRL-D to quit.
+```
+
+## Setup to run as a service.
+
+This will make ollama run as system service, allowing anyone to use it without it running on a terminal.
+
+First create a user for ollama to run as.
+
+```
+$ sudo useradd -r -s /bin/false -d /usr/share/ollama ollama
+$ sudo mkdir /usr/share/ollama
+$ sudo chown ollama:ollama /usr/share/ollama
+$ sudo chmod 700 /usr/share/ollama
+```
+
+Then create a ollama service definition file.
+
+```
+$ sudo cat > /etc/systemd/system/ollama.service <<EOF
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+EOF
+```
+
+Copy the ollama3 binary you built into /usr/local/bin
+
+```
+$ sudo cp ollama /usr/local/bin
+```
+
+Start it. First, close down the testing terminal you ahd running llama3 before
+
+```
+$ sudo service ollama start
+```
+## Test directly.
+
+This will download the llama3 model again, this time to shared space. You could copy this from your homedir to speed it up if needed.
+
+```
+$ ollama run llama3
+```
+
+## Test using the REST API
+
+```
+$ curl http://localhost:11434/api/generate -d '{
+  "model": "llama3",
+  "prompt":"Echo back the phrase: testing llama3"
+}'
+```
+
+## Notes
+
+You can replace the model with "llama3:70b" to use the larger model. This is MUCH slower, but should be more "accurate".

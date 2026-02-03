@@ -1,0 +1,185 @@
+---
+title: Types of Typing in Programming Languages.
+description: The differences between strong, weak, static and dynamic typed languages.
+pubDate: 16 December 2024
+heroImage: ../../assets/blog/programming.jpeg
+heroCredit: Altumcode @ unsplash
+heroLink: https://unsplash.com/photos/macbook-pro-on-white-table-FoTs3ntRoIs
+heroAltText: A laptop with code on it.
+---
+
+import { Image } from 'astro:assets';
+
+## Types of Typing.
+
+Recently I was asked to explain the differences between strong, weak, static and dynamic typed languages. I'm going to do this in a very simple way, and I hope it is clear enough.
+
+
+### Definitions.
+
+- Static Typing: The type of a variable is known at compile time.
+- Dynamic Typing: The type of a variable can change as the program runs.
+- Strong Typing: The language will enforce the type of a variable and will not allow you to perform operations that don't make sense for the types involved. Changing a variable to a different type generally has to be done explicitly.
+- Weak Typing: The language allows variable conversions to happen automatically for you, and tries to never generate type errors.
+
+Despite common misconceptions, a language can be static + weak or dynamic + strong. Static and Strong aren't synonymous, and dynamic and weak aren't either.
+
+| Language   |   Strong      |  Weak  |   Static  |  Dynamic  |
+|:----------:|:-------------:|:------:|:---------:|:---------:|
+| Python     |      ☑        |        |           |     ☑     |
+| Rust       |      ☑        |        |     ☑     |           |
+| Javascript |               |   ☑    |           |     ☑     | 
+| C          |               |   ☑    |     ☑     |           | 
+---------------------------------------------------------------
+
+It is useful to note that these defintions, and putting langauges into definitions is for our benefit as humans.
+In reality, things can be more complicated, as shown later in the [Java](# Extension1: Java) section.
+
+
+### Python.
+
+Python is dynamic, because a variable can change type at runtime. For example, this works.
+
+```python
+>>> x = 1
+>>> x = "hello"
+>>> print(x)
+hello
+```
+
+But Python is also strongly typed, because it will throw and error when you try and do something that doesn't make sense.
+
+```python
+>>> x = 1
+>>> y = "hello"
+>>> print(x + y)
+    x + y
+    ~~^~~
+TypeError: unsupported operand type(s) for +: 'int' and 'str'
+```
+
+### Javascript
+
+Javascript is also dynamic, because a variable can change type at runtime. For example, this works.
+
+```javascript
+let x = 1;
+x = "hello";
+console.log(x);
+```
+
+But Javascript is weakly typed. It will perform [type coercion](https://developer.mozilla.org/en-US/docs/Glossary/Type_coercion) when you perform operations on variables of different types. For example, this "works".
+
+```javascript
+> let x = 1;
+> let y = "hello";
+> console.log(x + y);
+1hello
+```
+
+This can cause some [unexpected behaviour](https://dev.to/subham_behera/the-bizarre-world-of-javascript-type-coercion-58h0).
+
+### Rust
+
+Rust is statically typed, because you must maintain the type of a variable at compile time. For example, this doesn't compile.
+
+```rust
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+fn main() {
+    let p = Point { x: 1, y: 2 };
+    let q = Point { x: 3.0, y: 4.3 };
+    println!("p.x={}, q.x={}, p.x + q.x={}", p.x, q.x, p.x + q.x);
+}
+```
+
+```bash
+   Compiling asdf v0.1.0 (/tmp/asdf)
+error[E0308]: mismatched types
+ --> src/main.rs:9:11
+  |
+9 |     p.x = 3.3;
+  |     ---   ^^^ expected integer, found floating-point number
+  |     |
+  |     expected due to the type of this binding
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `asdf` (bin "asdf") due to 1 previous error
+```
+
+Although the Point can hold different types, the compiler will enforce that once assigned, you can't change the type of the variable.
+
+Rust is also nstrongly typed, although it will infer the type of a variable when it is assigned. For example `let x = 5;` will infer that `x` is a `i32`, you can declare the type explicitly with something like `let x: u8 = 5;`. The compiler always knows the type of a variable, either because it is explicitly declared, or because it is inferred.
+
+### C
+
+C is the closest to a statically, weakly typed language I know of.
+
+It is statically typed, as you can't change the type of a variable at runtime. For example, this doesn't compile.
+
+```c
+int x = 1;
+char *y = "x";
+printf("%d", x + y);
+```
+
+```bash
+
+```
+
+But in a sense it is also weakly typed. It will cast types for you automatically, and often ends up performing operations treating everything as an integer. For example, this works, and is likely to generate confusing results to a new C programmer.
+
+```c
+#include <stdio.h>
+
+int main() {
+  int x = 1;
+  char *y = "a";
+  printf("%d", x + y);
+}
+```
+
+```bash
+$ gcc foo.c -o foo
+$ ./foo 
+1580269573
+$ ./foo 
+-1324539899
+```
+
+## Extension1: Java
+
+As far back as [2009](https://www.oracle.com/technical-resources/articles/javase/dyntypelang.html), the [JVM](https://en.wikipedia.org/wiki/Java_virtual_machine) had support for dynamically typed languages.
+
+Java, normally considered a statically typed language, actually has a few dynamic features. For example you can use `instanceof` to check if an object is an instance of a class, and you can cast an object to a different class with `(ClassName) object`.
+
+## Extension2: Typing Hinting Systems.
+
+While Javascript is a dynamic language, its cousin [TypeScript](https://www.typescriptlang.org/) has statically typed features. If we take the Javascript example from earlier, and use typescript instead, then after adding type hints, we can get the benefits of static type checking at "compile time".
+
+```bash
+$ cat x.ts
+let x: Number = 1;
+let y: String = "hello";
+console.log(x + y);
+
+$ bun tsc --alwaysStrict x.ts
+x.ts:3:13 - error TS2365: Operator '+' cannot be applied to types 'Number' and 'String'.
+3 console.log(x + y);
+```
+
+Python has similar, with tools like [mypy](https://mypy.readthedocs.io/en/stable/).
+
+```
+$ cat x.py
+x = 1
+y = str
+print(x + y)
+
+$ mypy x.py 
+x.py:3: error: Unsupported operand types for + ("int" and "type[str]")  [operator]
+Found 1 error in 1 file (checked 1 source file)
+```

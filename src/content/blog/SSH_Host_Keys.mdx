@@ -1,0 +1,255 @@
+---
+title: SSH Host Keys
+description: SSH Host Keys, useful or just a PITA.
+pubDate: 19 March 2024
+heroImage: ../../assets/blog/KeyAndDoor.jpeg
+heroCredit: Edmund Lou @ unsplash.com
+heroLink: https://unsplash.com/photos/brass-door-handle-on-blue-wooden-door-SKi0kbloPxw
+heroAltText: A key in the lock of a wooden door.
+---
+
+import { Image } from 'astro:assets';
+
+## What are host keys.
+
+To avoid confusion, lets start with what the are not. They aren't user keys.
+
+### They aren't user keys, but what are user keys ?
+
+These are the keys you might have generated, you might have copied into `authorized_keys` on a remote host, you might have added to a service like github. They are :-
+
+- Stored (on unix like systems) in your home directory, often in `.ssh/id_rsa` + `.ssh/id_rsa.pub` or `.ssh/id_ed25519` + `.ssh/id_ed25519.pub`.
+- Should have a passphare.
+- Should be used with an ssh-agent.
+- Used as a credential to login to a server, often replacing a password.
+
+### What ACTUALLY are host keys.
+
+If a user key identifies a user, a host key as the name suggests identifies a host. When
+you make an SSH connection to a computer, how can you be sure it is the computer you think it is ?
+
+In the world of the web, we have the HTTPS protocol, and SSL certificates to ensure some bad
+actor between you and the system you are trying to connect to isn't intercepting your connection.
+
+The typical infrastucture around SSH isn't quite so sophisticated, but the host verification system
+is designed to make sure you really are connecting to what you think you are, in the same way part of TLS is.
+
+### Connecting to a system for the first time.
+
+Using standard tools and default configs, if you connect to a system for the very first time, 
+you will expect to see something like this.
+
+```
+$ ssh testhost.fibrecat.org
+The authenticity of host 'testhost.fibrecat.org (172.27.3.4)' can't be established.
+ED25519 key fingerprint is SHA256:z1yLkcFGOLORUXYTsmpbpRn4mbKX3TWF9Y8VAbKKyio.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+```
+
+Most people just see this as something that is annoying, and they just type "yes" and blindly ignore it.
+Should you be most people ?. Maybe. It depends on how paranoid you are, how important your connection is,
+and how much you trust the people that run the network between you and the server.
+
+### A practical guide to being more secure.
+
+If you are sufficiently paranoid you want to do this the proper way, then what you should do is :-
+
+- Ask the server operator to generate the fingerprint for the servers ssh key.
+- Ask the server operator to communicate that to you in a secure way.
+- In the past, that might have been to read out an annoyingly long sequence of letters and numbers over the phone.
+- Given AI voice replication software, this might not be paranoid enough if you fear state actors.
+- Exactly how to do this is left as exercise to the reader.
+
+For example, the server operator could run this, to generate the ed25519 host fingerprint.
+
+```
+server$ sudo ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key
+256 SHA256:z1yLkcFGOLORUXYTsmpbpRn4mbKX3TWF9Y8VAbKKyio root@testserver (ED25519)
+```
+
+He could then copy and paste that into a whatsapp message to you, as he believes in security in the same way the 
+UK government does.
+
+Then when you login, you should confirm the fingerprint matches. You will note here they do. When you do this on a typical modern
+unix like system, the key will be stored in `~/.ssh/known_hosts`, like.
+
+```
+$ cat ~/.ssh/known_hosts
+|1|pgUxGrjNAJa5NsaYMu65uqtb5nk=|Aq5iWLrrkNWUpwgTb/NBOKNBn54= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL9nN3et8fq34n6Kr2JcB39hdXX1EtEXbj+KV/vj90bQ
+```
+
+You may note, the name of the system you connected to isn't stored here, nor are the fingerprints. If all you care about is the
+practical security, don't worry, you nailed it !. If you want to understand what is stored here though, read the "what is really going on" section.
+
+### What can go wrong.
+
+Now, you went through that pain and you login for weeks and never get a problem. And then, suddenly the big scary message appears !
+
+```
+$ ssh testhost.fibrecat.org
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:z1yLkcFGOLORUXYTsmpbpRn4mbKX3TWF9Y8VAbKKyio.
+Please contact your system administrator.
+Add correct host key in /root/.ssh/known_hosts to get rid of this message.
+Offending ED25519 key in /root/.ssh/known_hosts:1
+  remove with:
+  ssh-keygen -f "/root/.ssh/known_hosts" -R "localhost"
+Host key for localhost has changed and you have requested strict checking.
+Host key verification failed.
+```
+
+The good news is this message explains exactly what you need to know, but we can break it down.
+`WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!`: We have a saved key in `~/.ssh/known_hosts` for this
+machine, and the key we got from the server wasn't that one !
+
+`IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY! Someone could be eavesdropping on you right now (man-in-the-middle attack)!`. One of
+the reasons you get this message is an attacker on the network path between you and the host you are trying to connect to is
+intercepting your packets and trying to pretend to be the machine you are connecting to, possibly to get your login credentials and then go on to pretend to be you.
+For a well positioned attacker, this isn't particularly hard.
+
+`It is also possible that a host key has just been changed.`. Realistically this is the more likely case in many instances. And the most likely
+explanation for that is the server was rebuilt without the keys being saved. If this is the case, the instructions it gives you on removing the
+key will make you "forget" that machine ever existed, and then you can connect to it again and confirm you trust the new key.
+
+### The hostnames gotcha.
+
+One other common gotcha. What matters is the name you use to connect to the system.
+
+For example, if you do `ssh localhost` and save that key into `~/.ssh/known_hosts`, and then later do `ssh 127.0.0.1`, you will get an error. These
+might be the same machine, but ssh doesn't care. It only cares about the name you are connecting to.
+
+
+### What is really going on.
+
+If you go back to the server, you will find two keys (per key type), usually stored in the `/etc/ssh` directory.
+
+```
+server$ sudo cat /etc/ssh/ssh_host_ed25519_key.pub
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL9nN3et8fq34n6Kr2JcB39hdXX1EtEXbj+KV/vj90bQ root@testserver
+
+server$ sudo cat /etc/ssh/ssh_host_ed25519_key
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+QyNTUxOQAAACC/Zzd3rfH6t+J+iq9iXAd/YXV19RLRF24/ilf74/dG0AAAAJB8hYDYfIWA
+2AAAAAtzc2gtZWQyNTUxOQAAACC/Zzd3rfH6t+J+iq9iXAd/YXV19RLRF24/ilf74/dG0A
+AAAECcJuFnBHjfOrdnJcxf6zD6+oC5bY5IaH7lhmpav5mFJL9nN3et8fq34n6Kr2JcB39h
+dXX1EtEXbj+KV/vj90bQAAAAC3Jvb3RAZHdnLXBjAQI=
+-----END OPENSSH PRIVATE KEY-----
+```
+
+The bottom key, the one marked PRIVATE, is the key to the hosts security. It really should be kept private and
+not pasted into a blog post like this. (Of course don't worry, this isn't live anywhere anymore).
+
+The top key is the public key. This is specifically what you want to share, and you will note if you look carefully,
+it was what was stored in the `known_hosts` file. The fingerprint is just a way to abbreviate the key, as while
+reading out the fingerprint over the phone would be painful, reading out the key would be even more painful.
+
+And before SSH widely used eliptic curve ED25519 keys, the public key would have been even more painful to read out. Checkout
+this example of an RSA public key.
+
+```
+cat /etc/ssh/ssh_host_rsa_key.pub 
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC9Lq8SXS0B6Pg+HCm7JULfgXEifyplS38S+vJArxpHcSJwC5zZ6DrnO8IMLqhavaj0mO0FF3oVqyiLOFSF8yuSeaQ+1V8gEMufxf0FolTpqgu+gA2GAE/Tyyftxvavx8Ds2b5peCKO0LEVgpgKiFZUsLm+h7Psf6pmIGNY2Q9ISLOFC0uXTZZMEbBc50F5Rc6SMSqW8ziDgn6o3h4p8T0Z7IjsytyTsa21oscvrCYHIGmBDMCAyPaoDMOCokZal9B5QcMluTcr/uTYPMK3YfZ+UTMNvoQhY1eaVOTxRTO6GVZHSBV5LyVynjxziFZon60jsALf2YcF+unWmkVFm8f9xcqkNzbnbE6QdXtKkMKHlv00PK0QfB/51l6OBW/GTz8sWfNc5KCqQeugCOMfFEOjPHR72vJDLUB+XCPR0n4h22g4PycsLJdj1RXFAGqnKu0aFiHDSvl1/MQp09HIP8DRUjrprZ937i4o/uHLG9RNRasj/cs14llMeaukDQJjtOc= root@dwg-pc
+```
+Good luck reading that over a phone with zero mistakes !
+
+So as an alternative to reading out fingerprints, or reading them and accepting the keys, if you have a secure method of communicating this public key, you should use it, and put the key directly into the known_hosts file.
+
+While we might now have explained the second half of that `known_hosts` line we looked at earlier, we still haven't explained the first line. How does ssh know the hostname ?. Well, that is what is in the first part of the known_hosts file.
+This used to be just the hostnames in plain text. However in 2005 a feature was added to OpenSSH to hash the hostnames, and it became a default for most linux distributions sometime in the 2010's. When a hostname is added now, it is first
+put through a one way hash function. The computer can verify `"|1|pgUxGrjNAJa5NsaYMu65uqtb5nk=|Aq5iWLrrkNWUpwgTb/NBOKNBn54="` maps to `testserver.fibrecat.org`, but going the other way is impossible. This makes a known_hosts file slightly
+less useful to an attacker.
+
+
+## Putting Keys in DNS.
+
+Wait what, DNS ?
+
+Yes, if we have everything sufficiently well setup, we can use DNS to do exactly that. It does require jumping through quite a lot of hoops though, 
+and so is really suited at the moment to more controlled environments and isn't a universal solution for everyone.
+
+It involves three key parts.
+
+1. Being able to trust your DNS resolution.
+2. Having SSH server operators put public hostkeys into DNS.
+3. Having your SSH client software look in DNS for that data.
+
+Trusting the DNS is the hardest part. You will need to be running a DNSSEC capable resolver, and every zone in your resolution of the hostname will need to be DNSSEC signed. How to do this is certainly 
+a good topic for another blog post, but this is long enough already.
+
+Getting the keys into DNS is reasonably easy. There is a record type, [`SSHFP`](https://en.wikipedia.org/wiki/SSHFP_record) exactly for this. My zones have this in it.
+
+```
+$ dig +short SSHFP zeus.fibrecat.org
+4 2 cf5c8b91c14638b391517613b26a5ba519f899b297dd3585f58f1501b28aca2a BAF4E0F9
+```
+
+- The 4 says this is a ED25519 Eliptic Curve Key.
+- The 2 says the hash type for the fingerprint is SHA256.
+- The rest is a hex encoded version of the fingerprint.
+
+You can verify that with this command, and you will note the output matches the fingerprint.
+
+```
+$ echo cf5c8b91c14638b391517613b26a5ba519f899b297dd3585f58f1501b28aca2a | xxd -r -p | base64
+z1yLkcFGOLORUXYTsmpbpRn4mbKX3TWF9Y8VAbKKyio=
+```
+
+And if you are that server operator looking to generate the key, use `ssh-keygen -r` to do it.
+
+```
+server$ sudo ssh-keygen -r testserver
+testserver IN SSHFP 1 1 dc9aafbc26fcc1421d817ddda473cd42f4cec98e
+testserver IN SSHFP 1 2 05408dfaeb2f82751974d6253bc8da1706e8e8320772b114af439a18ad6b4fc2
+testserver IN SSHFP 3 1 037850ee6e021c5f99aa284451ab28d1458c765f
+testserver IN SSHFP 3 2 065787469adaa08b77c9b10c62be0f56e8c78eac21d9bbc76cc49c8bff4c43f5
+testserver IN SSHFP 4 1 43128d3a1bee5e47aeaa3ae632b0d90eaeeb0a63
+testserver IN SSHFP 4 2 cf5c8b91c14638b391517613b26a5ba519f899b297dd3585f58f1501b28aca2a
+```
+
+Finally, getting SSH to look at DNS for keys is also easy enough.
+
+As a one off, you can do `ssh -o VerifyHostKeyDNS yes user@testserver`.
+If you as a user always want to do it, add `VerifyHostKeyDNS yes` to `~/.ssh/ssh_config`
+If you want to enable this systemwide, add `VerifyHostKeyDNS yes` to a file in `/etc/ssh/ssh_config.d/`.
+
+## Conclusion.
+
+Now you should hopefully know what host keys are, what they do for you, and if you care about them.
+You also know how to publish keys to DNS, and given you already have working DNSSEC, why you should trust them.
+
+Honestly, if you take nothing more from this blog post but knowing exactly what you are doing when
+you blindly `rm ~/.ssh/known_hosts` and type "yes" into every prompt you see, I'll feel at least a little
+better you are now working with a known drop in security levels rather than just blindly doing stuff.
+
+### The REAL dirty secret.
+
+Since you have got the bottom, I'll reveal the dark secrets of that "I don't care" club.
+I could never recommend doing this, but if you have read the rest of this article, you now
+at least know what tradeoffs you are taking if you do decide to do it.
+
+<details>
+<summary>Dark Secrets of "I don't care" club.</summary>
+```
+# Add to ~/.ssh/ssh_config
+# I AM A BAD AND I SHOULD FEEL BAD
+StrictHostKeyChecking no
+UserKnownHostsFile=/dev/null
+```
+</details>
+
+&nbsp;
+
+## Further RabbitHoles.
+
+- You can centrally manage host keys with an ssh-agent for host keys.
+- You can replace the entire host keys system with certificates and a certifiate authority, and create a very HTTP / TLS like experience.
+
+I am likely to write a blog post about the certificates option later, as although somewhat complex, it resolves many of the problems found with host keys.

@@ -1,0 +1,112 @@
+---
+title: Start now or wait ?
+description: When to start building in a rapdily advancing field.
+pubDate: 19 August 2024
+heroImage: ../../assets/blog/mathematical_proof.jpeg
+heroCredit: Parrish Freeman @ Unsplash
+heroLink: https://unsplash.com/photos/T0Cst1M37nc
+heroAltText: Mathematics on a whiteboard.
+---
+
+import { Image } from 'astro:assets';
+import Latex from '../../components/Latex.astro';
+
+## The Question.
+
+I was recently in a meeting where we were trying to calculate when to start training an AI model. This reminded
+me of the problem about when to launch a rocket. I can't remember what book I first read that question in, but
+it was when I was quite young, I think 12 or 13. I also can't remember the exact question either, but it would be 
+something like this.
+
+Imagine the nearest star is 4.25 light years away. You want to launch a probe to reach it as soon as possible. Currently,
+you can launch a probe at 1% of the speed of light. Each year, rocket technology will improve by 1% of the speed of light.
+In how many years should you launch your probe to have it arrive as soon as possible.
+
+The question didn't talk about acceleration of deacceleration, so I will assume the time for the is negligable. The question also didn't say to ignore relaitivistic effects, but I'm going to do that here (mostly so my brain doesn't explode).
+
+## Option1: Write a Program.
+
+At 12 I didn't have the mathematical technique to solve this problem. At 20 I had more than enough knowledge to crush it.
+Now having largely not used those techniques in a long time, I can just about scramble around and get the answer.
+
+You could solve this problem programmatically. 12 year old me would have been able to do something like this, but in a different programming language and with a much less convienient graphing solution.
+
+40 something me does it in Python like this.
+
+
+```python
+import matplotlib.pyplot as plt
+
+YEAR_IN_SECONDS = 31_556_926
+SPEED_OF_LIGHT_METRES_PER_SECOND = 299_792.458
+DISTANCE_TO_STAR_METRES = 4.25 * YEAR_IN_SECONDS * SPEED_OF_LIGHT_METRES_PER_SECOND
+
+def time_to_star(distance_to_star: float, speed_of_rocket: float) -> float:
+    return distance_to_star / speed_of_rocket
+
+def time_to_alpha_centauri(year_of_launch: int) -> float:
+    return (year_of_launch * YEAR_IN_SECONDS) + time_to_star(DISTANCE_TO_STAR_METRES, year_of_launch * 0.01 * SPEED_OF_LIGHT_METRES_PER_SECOND)
+
+def main():
+    results = {}
+    for year in range(1, 100):
+        results[year] = time_to_alpha_centauri(year)
+
+    inv_map = {v: k for k, v in results.items()}
+    
+    print(f"""
+You should launch in year {inv_map[min(results.values())]} \
+and you will take a total of {min(results.values()) / YEAR_IN_SECONDS} years to reach Alpha Centauri
+""")
+    
+    plt.plot(list(results.keys()), [x / YEAR_IN_SECONDS for x in list(results.values())])
+    plt.xlabel('Year of Launch')
+    plt.ylabel('Time to Alpha Centauri (years)')
+    plt.show()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Option2: Use a Spreadsheet.
+
+You can also plug values into a spreadsheet, and use it similarly to the program above. [Click Here](https://docs.google.com/spreadsheets/d/1PQ6gNprT-gzFGLj6TfTXqBrI3YwvnAdRdRWd2COlaPY/edit?usp=sharing) for a crude sheet to calculate this.
+
+
+## Option3: A mathematical solution.
+
+- Let T be the time to reach Alpha Centauri.
+- Let Y be the number of years to wait until launch.
+- Let D be the distance to Alpha Centauri (in light years).
+- Let C be 1, ths speed of light in a vacuum (in light years per year).
+
+While c is the speed of light in a vacuum (in metres per second),
+we can make the calculations simpler if we measure speed as light years per year, and so always be 1.
+
+Then we can write T in terms of Y.
+
+<Latex formula='T = \frac{D}{\frac{1}{100} \cdot Y}' />
+
+But we are interested in the time to reach Alpha Centauri, which is `Y`. So we want to rearrange
+the equation so it is in terms of `Y`.
+
+And we want to minimise the time to reach Alpha Centauri, so we differentiate with respect to `Y`.
+
+<Latex formula='\frac{dT}{dY} = \frac{-100D}{[(1 + Y)]^2}' />
+
+We substitute in the value of D (4.25) and set `dT/dY` to zero.
+
+<Latex formula='0 = \frac{c \cdot Y^2}{c \cdot Y^2 - 100D}' />
+
+And rearrange this in terms of Y.
+
+<Latex formula='Y = \pm 10 \sqrt{D}' />
+
+And finally substitute in the value of D (4.25).
+
+<Latex formula='Y = \pm 10 \sqrt{4.25}' />
+<Latex formula='Y \pm \approx 20.615' />
+
+And the negative solution isn't useful, so we can ignore it.
+
+This answer matches the programs answer, so we can be extra confident the answer is correct.

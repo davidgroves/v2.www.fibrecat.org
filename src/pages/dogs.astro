@@ -1,0 +1,94 @@
+---
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Cyrus from '../assets/Cyrus.jpg';
+import Daisy from '../assets/Daisy.jpg';
+
+const faqs = [
+  {
+    question: "Where did you get Daisy and Cyrus from?",
+    answer: `Daisy was born in Ireland, and raced in the north of England around Sunderland. She was retired from racing after an injury and taken in by Celia and Jim at <a href="http://www.greyhoundrescuefife.com/" class="link link-primary" target="_blank" rel="noopener noreferrer">Greyhound Rescue Fife</a>. Cyrus realised that being rubbish at racing was the fastest path to the sofa and this turned out to be true. He was fostered by us from the <a href="https://www.scottishgreyhoundsanctuary.org/" class="link link-primary" target="_blank" rel="noopener noreferrer">Scottish Greyhound Sanctuary</a>, but we very quickly fell in love with him and he found his sofa.`
+  },
+  {
+    question: "Do greyhounds need lots of exercise?",
+    answer: "As with anything, this varies from dog to dog. Most greyhounds just love a good sofa though and a couple of short 20 minute walks per day will be all they really need. That said, our two do love a nice long walk when they can, and Daisy has even bagged a munro when she climbed Ben Lomond with us."
+  },
+  {
+    question: "What do your hounds eat?",
+    answer: "Hound diets can be quite varied, but ours mostly eat raw. We discovered it was good for Daisy early on in having her, and certainly helped turn her rear end into less of a chemical weapons facility. That said, different foods work for different dogs and we wouldn't suggest raw feeding for everyone or every dog."
+  },
+  {
+    question: "How fast can your dogs run?",
+    answer: "I've measured them by timing them past two posts with a stopwatch, and they can both run at around 40 mph / 65 kph."
+  },
+  {
+    question: "How old are your dogs?",
+    answer: "Daisy was born in May 2018 and Cyrus 11 months later in June 2019. All racing greyhounds from the UK and Ireland have ear tattoos that include the year and month they were born."
+  }
+];
+---
+
+<BaseLayout title="Dogs" description="Meet Daisy and Cyrus, our retired racing greyhounds.">
+  <div class="container mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold mb-6">Our Greyhounds</h1>
+    
+    <!-- Introduction -->
+    <div class="prose prose-lg max-w-none mb-12">
+      <p>
+        My wife and I are lucky enough to be hound parents to these two, <strong>Daisy</strong> and <strong>Cyrus</strong>. 
+        This domain name was chosen before we got our wonderful hounds, and Daisy would most certainly not approve. 
+        Despite our best efforts I don't think she will ever consider cats to be her friends.
+      </p>
+    </div>
+
+    <!-- Dog photos -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+      <div class="card bg-base-200 shadow-xl">
+        <figure class="px-4 pt-4">
+          <Image 
+            src={Daisy} 
+            alt="Daisy the Greyhound" 
+            class="rounded-xl object-cover w-full h-80"
+          />
+        </figure>
+        <div class="card-body items-center text-center">
+          <h2 class="card-title text-2xl">Daisy</h2>
+          <p class="text-base-content/70">Born May 2018 in Ireland. Retired racer and munro bagger.</p>
+        </div>
+      </div>
+
+      <div class="card bg-base-200 shadow-xl">
+        <figure class="px-4 pt-4">
+          <Image 
+            src={Cyrus} 
+            alt="Cyrus the Greyhound" 
+            class="rounded-xl object-cover w-full h-80"
+          />
+        </figure>
+        <div class="card-body items-center text-center">
+          <h2 class="card-title text-2xl">Cyrus</h2>
+          <p class="text-base-content/70">Born June 2019. Professional sofa tester.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <section>
+      <h2 class="text-3xl font-bold mb-6">Frequently Asked Questions</h2>
+      
+      <div class="join join-vertical w-full">
+        {faqs.map((faq, index) => (
+          <div class="collapse collapse-arrow join-item border border-base-300 bg-base-200">
+            <input type="radio" name="faq-accordion" checked={index === 0} />
+            <div class="collapse-title text-xl font-medium">
+              {faq.question}
+            </div>
+            <div class="collapse-content">
+              <p set:html={faq.answer} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
+</BaseLayout>

@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "@tailwindcss/typography";
+
+/* KaTeX styles for math rendering */
+@import "katex/dist/katex.min.css";
+
+/* Custom font */
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-LightItalic.woff2') format('woff2');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* DaisyUI theme configuration */
+@theme {
+  --font-sans: 'OpenSans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prose customizations for blog posts */
+.prose {
+  max-width: 75ch;
+}
+
+.prose pre {
+  @apply rounded-lg;
+}
+
+.prose code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded bg-base-300 text-base-content;
+}
+
+.prose code:not(pre code)::before,
+.prose code:not(pre code)::after {
+  content: '';
+}
+
+/* Code block copy button */
+.code-block-wrapper {
+  position: relative;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.code-block-wrapper:hover .copy-button {
+  opacity: 1;
+}
+
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* View transitions */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+}

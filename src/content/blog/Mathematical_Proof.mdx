@@ -1,0 +1,148 @@
+---
+title: What is mathematical proof
+description: What is mathematical proof ?
+pubDate: 11 November 2023
+heroImage: ../../assets/blog/mathematical_proof.jpeg
+heroCredit: Parrish Freeman @ Unsplash
+heroLink: https://unsplash.com/photos/T0Cst1M37nc
+heroAltText: Mathematics on a whiteboard.
+---
+
+import { Image } from 'astro:assets';
+import Latex from '../../components/Latex.astro';
+import mathematical_proof from '../../assets/blog/mathematical_proof.jpeg';
+import shortpaper from '../../assets/blog/shortpaper.png';
+
+## Well, actually ...
+
+This is one of the articles' I've written most open to being "well, actually'd". This IS somewhat simplified, but 
+the original audiance that asked my question did need me to keep it simple, or I'd not be able to explain anything at all !
+
+## Source of this question.
+
+My mother have never been someone interested in mathematics, science or technology. In fact, she can
+barely type, and when she got her first job at a school that required her to use a computer mouse,
+I had to give a 60 year old instruction on how to use one in the 2010's.
+
+At that school during a break, she heard several teachers discussing the 
+[Einstein tile](https://www.livescience.com/newly-discovered-einstein-tile-is-a-13-sided-shape-that-solves-a-decades-old-math-problem)
+discovery made by David Smith. The topic of this conversation drifted from the tile problem itself to the nature of mathematical proof.
+The question I got from my mother, after a little back and forward, could be summarised as "what does a mathematician mean by proof".
+
+One thing to note, these Einstein tiles have nothing to do with [Albert Einstein](https://en.wikipedia.org/wiki/Albert_Einstein),
+but are about covering a surface with a single tile. Google translate will turn "One Stone" into "Ein Stein", although some
+german speaking friends of mine have said the one stone translation is a bit of a stretch.
+
+## Multiple meanings of proof.
+
+Most people know there are multiple types of proof. A good example, and a particularly good one for my mother as she used to work in
+the legal system in England, is the idea of the level of proof needed to win a court case.
+
+In the UK and many other western legal systems there are two standards of proof. If you are accused of a crime, several things are true.
+
+- You are presumed to be innocent. Hence "You are innocent until proven guilty".
+- The prosecution must convince the court that you are "guilty beyond reasonable doubt". That isn't particularly well defined but two
+definitions I've heard used by judges are "so convinced of guilt that you are sure", and "99% convinced".
+
+If however you are in a civil rather than criminal case, for example you are sued for failing to fufil a contract, then the burden of
+proof is different. The burden to prove the case is on the side of that brings the case, but the requirement on the proof is lower.
+In the UK it is officially "on the balance of probability". In other words, simply that you are more likely to be correct than not.
+You could also classify this as "51%" sure.
+
+Scientist in other fields also have various standards for what they consider to be proof. In experimental sciences, there is always
+the chance you got a result that matches your theory by random chance. For example, if I have a theory that a particular die is loaded,
+the more and more I test this theory by rolling it, the less and less likely it is that random luck is responsbile is the reason
+each side of the die hasn't come up the same numbers of times. However no matter how many times I do it, I cannot eliminate the
+chance totally.
+
+Particle physics has one of the highest requirements of proof. It is called the [5 sigma test](https://cds.cern.ch/record/44944?ln=en), and
+indicates that the chance of the result being random chance is around 1 in 3.5 million.
+
+## Some terminology.
+
+Before reading and understanding material around this, it is important to note what terms mathematicians use.
+
+**Axiom**: As a self evident fact, which can be presented without proof and which people agree on being true.
+
+**Conjecture**: A claim that some fact is true, presented without proof. Usually conjectures have significant evidence that they
+are true, but do not have absolute 100% proof.
+
+**Theorem**: A conjecture which has been proved.
+
+**Proof**: The demonstration, using only Axiom's and existing Theorems, that shows a conjecture is true. Hence making the
+conjecture into a theorem.
+
+## What is the mathematicians meaning of proof.
+
+Interestingly, it is even more strict than the proof standards in even particle physics. It is as close as is possible to be requiring
+100% certainty. 
+
+Mathematicians build proof on top of [axioms](https://en.wikipedia.org/wiki/Axiom). An axiom is similar to a famous part of the  
+[US decleration of independence](https://www.archives.gov/founding-docs/declaration-transcript). Specifically, 
+"*We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator 
+with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness*" While it is clear to see
+what "all men" are classified as might have differed from 1776 until now, what is clear is this is an axiom. It presumes things,
+and it states them without justification. As itself says, these truths are "self-evident".
+
+Mathematical axioms are also held to be self evident, and various projects have tried to reduce them to as few a count as possible,
+and to make them truely as self evident as possible. The book by [Bertrand Russel](https://en.wikipedia.org/wiki/Bertrand_Russell)
+and [Alfred North Whitehead](https://en.wikipedia.org/wiki/Alfred_North_Whitehead), 
+[Principia Mathematica](https://en.wikipedia.org/wiki/Principia_Mathematica) famously took hundreds of pages to prove `1+1=2`.
+
+## Fermats Last Theorem.
+
+17th century French mathematician, [Pierre de Fermat](https://en.wikipedia.org/wiki/Pierre_de_Fermat) famously wrote a statement
+in a margin of his copy of an ancient greek text words that roughly translate as 
+"I have a truly marvelous demonstration of this proposition that this margin is too narrow to contain." He may have thought
+he did, but he almost certainly did not, as it took nearly 300 years and a huge amount of new methods in mathematics for it to
+finally be [proved](https://en.wikipedia.org/wiki/Wiles%27s_proof_of_Fermat%27s_Last_Theorem) 
+by [Andrew Wiles](https://en.wikipedia.org/wiki/Andrew_Wiles) in the 1990's.
+
+This statement was that the formula below has no integer solutions when n > 3.
+
+<Latex formula='x^n + y^n = z^n'/>
+
+For example, while these solutions exist when n is 2.
+
+<Latex formula='3^2 + 4^2 = 5^2 \hspace{10px} and \hspace{10px} 5^2 + 12^2 = 13^2'/>.
+
+No examples at all exist for this, where a, b and c are all positive integers.
+
+<Latex formula='a^3 + b^3 = c^3 \hspace{10px} or \hspace{10px} a^4 + b^4 = c^4 \hspace{10px} or \hspace{10px} a^5 + b^5 = c^5 \hspace{10px} and\hspace{2px} so\hspace{2px} on ...' />.
+
+If you believe the Andrew Wiles proof, and the mathematical community has generally does, then 
+
+## Euler's Sum of Like Powers Conjecture.
+
+[Leonhard Euler](https://en.wikipedia.org/wiki/Leonhard_Euler) is one of the most famous and prodigious mathematicians ever. He conjectured that was a similar case to fermats last
+theorm, and that no solutions would exist for these examples, and an infinity more of them, adding one term each time you raise the exponnent.
+
+<Latex formula='a^4 + b^4 + c^4 = d^4 \hspace{10px} or \hspace{10px} a^5 + b^5 + c^5 + d^5 = e^5' />
+
+This however, was false. It resulted in one of the shorest papers ever printed in the field.
+
+<Image src={shortpaper} alt='The 1966 paper by L.J Lander and T.R Parkin, Counterexample to Eulers Conjecture on Sums of Like Powers' class="center" />
+
+Here we see computers of the 1960's were enough to disprove this conjecture which had been assumed to be true for hundreds of years, by simply finding
+one single counter example.
+
+The smallest possible counterexample for n = 4 is
+
+<Latex formula='95800^4 + 217519^4 + 414560^4 = 422481^4 = 31,858,749,840,007,945,920,321' />
+
+I think it is safe to see before the existance of computers why this counterexample wasn't found using pen and paper !
+
+## Actual proofs.
+
+So far I've just talked the standard of proof, and how a conjecture can fall apart with a single counterexample, but here are some links
+to actual proofs. To me, the simplest proof is this [Proof of Pythagoras' Theorm](https://www.mathsisfun.com/geometry/pythagorean-theorem-proof.html).
+
+If a paper exists that proves an algorithm is the most efficient, or a storage method is the most efficient, then it almost certainly is. The only
+way it isn't is if mistakes exist in the proof. You should be able to read the proof and convince yourself of it's validity, at least in theory. Sometimes the
+mathematics involved in significant proofs in computer science can get pretty gnarly though !
+
+## Further Reading / Viewing.
+
+- [Simon Singh's Book, Fermat's Last Theorem](https://www.amazon.co.uk/Fermats-Last-Theorem-Confounded-Greatest/). A popular book, explaining the story of Fermat's Last Theorem, but also contains some simpler proofs as examples.
+- [Jay Cummings' Book, Long Form Proofs](https://www.amazon.co.uk/Proofs-Long-Form-Mathematics-Textbook-Math/). A textbook, but one aimed at explaining proofs.
+- [Eddie Woo's video, A Visual Proof of the Pythagorean Theorem](https://www.youtube.com/watch?v=tTHhBE5lYTg).

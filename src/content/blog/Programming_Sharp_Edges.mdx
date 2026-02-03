@@ -1,0 +1,105 @@
+---
+title: Programming Sharp Edges
+description: A sharp edge in Python, and how I'd fix it
+pubDate: 22 December 2023
+heroImage: ../../assets/blog/smokestacks.jpeg
+heroCredit: Blaz Erzetic @ Unsplash
+heroLink: https://unsplash.com/photos/hi3Hk33Hqlc
+heroAltText: A man operating a circular saw on wood.
+---
+
+import { Image } from 'astro:assets';
+
+## What do I mean by a sharp edge ?
+
+Tools can have sharp edges for two reasons, or for a combination of those two things.
+
+1. Tools that NEED sharp edges. A saw or a kitchen knife without a sharp edge isn't very useful.
+1. Paper !. Papercuts really hurt, and they are a side effect of how thin paper is, not a requirement.
+
+Sharp edges in software engineering are usually a mixture of both. They often form an easy to use foot gun as well,
+the kind of thing which lets you shoot yourself in the foot easily. You can obviously make mistakes with any tool.
+You could in theory cut off your own foot with a saw but it would be quite hard to do so. However it is quite
+easy to give yourself a papercut by mistake !
+
+## This particular sharp edge.
+
+To those familiar with Python, you may well have guessed what I'm going for here. It is **mutable defaults**. Here is
+a very simple example.
+
+```python
+def append_to(element: any, to: list = []) -> list:
+    to.append(element)
+    return to
+
+my_list = append_to(3, [1,2])
+print(my_list)
+
+my_other_list = append_to("c", ["a", "b"])
+print(my_other_list)
+```
+
+This works as I think most people would expect, the result is 
+
+```
+[1, 2, 3]
+['a', 'b', 'c']
+```
+
+Now, we repeat this but we use the fact the **append_to** has a default argument for the list to append to, which
+is an empty list.
+
+```
+def append_to(element: any, to: list = []) -> list:
+    to.append(element)
+    return to
+
+my_list = append_to(3)
+print(my_list)
+
+my_other_list = append_to("c")
+print(my_other_list)
+```
+
+If you aren't familiar with this, you most likely expect the output to be
+
+```
+[3]
+['c']
+```
+
+Even if you weren't already aware, you no doubt became suspicious because of the way I wrote this blog post.
+What you actually get is.
+
+```
+[3]
+[3, 'c']
+```
+
+## So what happened.
+
+When you know, it is simple to see. When you create the function, a list variable is created called **to**,
+bound to the function and set to the value of the empty list. When the function is called for the first time,
+that list is mutated, and the 3 is appended to the end of it. Then, when it is called for the second time,
+**THAT SAME LIST** is mutated again and now it becomes [3, 'c'].
+
+In some circumstances, this might be what a person wanted, but I would say in >99% of cases it isn't, and this
+kind of behaviour just creates a bug. It is so common a bug that tools like 
+[pylint](https://pypi.org/project/pylint/) give a warning for it, 
+[W102](https://pylint.pycqa.org/en/latest/user_guide/messages/warning/dangerous-default-value.html)
+
+## What should be done.
+
+Ideally, this kind of defect should be something that causes the program to not work. It being an error you
+can catch with a linter is good, and I would configure a linter to make this a hard error and not
+allow the code to be checked into a CI system.
+
+However we saw from how very painful the Python2 → Python3 transition was that making backwards compatbile
+breaking changes in a programming language, no matter how good an idea they seem, can come with the gnashing
+of teeth and all kinds of suffering.
+
+I also cannot think of a realistic scenario where code like this would be useful, and even if someone found one
+in code I was reviewing, I'd look to find a clearer way to express it. The code might be clear to the
+Python interpretator, but it I don't think it has ever been clear to human beings !
+
+

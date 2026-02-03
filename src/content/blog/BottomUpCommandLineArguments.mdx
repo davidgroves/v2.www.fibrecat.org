@@ -1,0 +1,432 @@
+---
+title: CLI Arguments from the Bottom Up.
+description: Understanding how programs parse CLI arguments, but from the bottom up.
+pubDate: 28 June 2024
+heroImage: ../../assets/blog/shell.png
+heroCredit: Iconduck @ Iconduck.com
+heroLink: https://iconduck.com/icons/27102/bash
+heroAltText: A shell prompt.
+---
+import { Image } from 'astro:assets';
+
+## What are CLI Arguments ?
+
+CLI Arguments are the arguments you pass to a program when you run it. They have some conventions around how they work, but they are not a standard. Different programs may have different rules.
+
+For example, the `ls` command, which lists files, has a `-l` option to list in long format or a `-a` option to list all files including hidden files. The `git` command has a `add`, `commit` and `pull` subcommands. Many programs have a `--help` option which prints out help information, and a `--version` option which prints out the version of the program, but not all.
+
+## What is responsible ?
+
+The program itself is responsible for parsing the arguments. Usually you will use a library to do this, such as [getopt](https://man7.org/linux/man-pages/man3/getopt.3.html) in C, [argparse](https://docs.python.org/3/library/argparse.html) in Python or [clap](https://docs.rs/clap/latest/clap/) in Rust. However you can also do this in a more raw way, for example by examining the [sys.argv](https://docs.python.org/3/library/sys.html#sys.argv) list in Python.
+
+## Most basic example.
+
+Lets start by making a very basic example. We will write a program that does nothing, and then dump its memory space while it is running and examine it, looking for the arguments it was passed.
+
+```c
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+    printf("PID: %ld\n", (long)getpid());
+    sleep(180);
+    exit(EXIT_SUCCESS);
+}
+```
+
+This is a very simple C program, it just sleeps for 180 seconds, and then exits. So what happens if we run it with some
+command line arguments ?. Well, outside a boring wait to check, nothing.
+
+```shell
+$ gcc -o sleep sleep.c
+$ ./sleep QWERTYUIOP
+PID 54225
+<3 min wait>
+$ echo $?
+0
+```
+
+So lets dump the memory space of this program while it is running (which is why it has the long sleep in it).
+
+```shell
+$ ./sleep ThisIsALongMessageIHopeICanFind
+PID 129031
+
+$ gdb -p 129031
+(gdb) attach 129031
+Attaching to process 129031
+...
+
+(gdb) info proc mappings
+(gdb) info proc mappings
+process 129031
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x558171563000     0x558171564000     0x1000        0x0  r--p   /home/dwg/CODE/playpen/sleep
+      0x558171564000     0x558171565000     0x1000     0x1000  r-xp   /home/dwg/CODE/playpen/sleep
+      ...
+      ...
+      0x7ffd4de56000     0x7ffd4de77000    0x21000        0x0  rw-p   [stack]
+
+(gdb) x/-96s 0x7ffd4de77000
+0x7ffd4de7615a:	""
+0x7ffd4de7615b:	"./sleep"
+0x7ffd4de76163:	"ThisIsALongMessageIHopeICanFind"
+0x7ffd4de76183:	"SHELL=/bin/bash"
+0x7ffd4de76193:	"EDITOR=vim"
+```
+
+### Wait, what did we do ?
+
+- We ran the sleep program with a long command line argument. 
+- We ran [gdb](https://www.gnu.org/software/gdb/), and attached to the process.
+- We looked at the memory mappings allocated to the process.
+- We found the stack.
+- We inspected the memory (the x part),
+  - We looked at the stack (the 0x7ffd4de77000 part, which is the end address of the stack)
+  - starting form the bottom (the -96) part
+  - and we looked for strings (the s part).
+
+And doing this we found our command line argument on the stack, and we also found our environment variables as well.
+
+We can confirm this, by repeating the process with two command line arguments, and seeing what we get. I'll shortcut this.
+
+```shell
+$ ./sleep CommandLineArgument1 CommandLineArgument2
+PID 129031
+
+$ gdb -p 129031
+(gdb) attach 129031
+(gdb) info proc mappings
+(gdb) x/-96s 0x7ffcac2c4000
+0x7ffcac2c3151:	"./sleep"
+0x7ffcac2c3159:	"CommandLineArgument1"
+0x7ffcac2c316e:	"CommandLineArgument2"
+0x7ffcac2c3183:	"SHELL=/bin/bash"
+0x7ffcac2c3193:	"EDITOR=vim"
+```
+
+So now we know where the command line arguments are stored (on the stack), and we also know that the environment variables are stored in the same place. So lets look at the stack.
+
+## Further confirmation.
+
+We can modify the sleep program slightly to use the most raw form of argument parsing, and see what happens.
+
+```c
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+
+/* Main gets argc (an integer with the number of command line arguments
+ * and argv (a pointer to a pointer of the array of strings that
+ * are the command line arguments.
+ */
+
+int main(int argc, char *argv[]) {
+    printf("PID: %ld\n", (long)getpid());
+    printf("Arg Count: %d\n", argc);
+
+    /* argv is a pointer to a pointer, so dereference it before printing it */
+    printf("Argv Address: 0x%lx\n", *argv);     
+    sleep(180);
+    exit(EXIT_SUCCESS);
+}
+```
+
+```shell
+$ gcc -o cli cli.c
+$ ./cli CommandLineArgument1 CommandLineArgument2     
+PID 129031
+Arg Count: 2
+Argv Address: 0x7ffc7736ca48
+
+$ gdb -p 129031
+(gdb) attach 129031
+(gdb) x/-32s 0x7ffc7736ca48
+
+0x7ffd0c0490f5:	"./cli"
+0x7ffd0c0490fb:	"CommandLineArgument1"
+0x7ffd0c049110:	"CommandLineArgument2"
+```
+
+If you want more details on how the arguments are passed, I'd recommend this article from [ired.team](https://www.ired.team/miscellaneous-reversing-forensics/windows-kernel-internals/linux-x64-calling-convention-stack-frame).
+
+## Manual Parsing.
+
+Here we see a program that loops through the arguments and prints them out. You could therefore adapt this to parse and handle the arguments.
+
+```c
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    printf("PID: %ld\n", (long)getpid());
+    printf("Arg Count: %d\n", argc);
+
+    /* argv is a pointer to a pointer, so dereference it before printing it */
+    printf("Argv Address: 0x%lx\n", *argv);     
+
+    /* Manual parsing of the command line arguments. */
+    for (int i = 0; i < argc; i++) {
+        printf("Arg %d: %s\n", i, argv[i]);
+    }
+    sleep(180);
+    exit(EXIT_SUCCESS);
+}
+```
+
+```shell
+$ gcc -o cli2 cli2.c
+$ ./cli2 A B C D
+PID: 488377
+Arg Count: 5
+Argv Address: 0x7ffccce36114
+Arg 0: ./cli2
+Arg 1: A
+Arg 2: B
+Arg 3: C
+Arg 4: D
+```
+
+## Parsing manually.
+
+Lets have a program with specification below.
+
+```
+arithmetic: A simple arithmetic program for integers.
+
+Usage: arithmetic [options]
+  -h  --help        Show this help message
+  -x  --xvalue      X value
+  -y  --yvalue      Y value
+  -o  --operation   The operation to perform, from [add, sub, mul, div]
+
+Examples:
+
+$ arithmetic -x 10 -y 10 -o add
+20
+
+$ arithmetic -x 3 -y 6 -o mul
+18
+
+$ arithmetic -o mul -x 3 -y 6
+18
+```
+
+I'll switch languages here to Python, as we no longer need to worry about the low level details and this lets us focus on the actual task. In python, we would normally use the [argparse](https://docs.python.org/3/library/argparse.html) library to parse the command line arguments, but to start with we will do this manually, jus using the [sys.argv](https://docs.python.org/3/library/sys.html#sys.argv) list.
+
+This program despite having a very simple task is actually quite complex to implement. We need to consider all the following things.
+
+1. What happens if the user passes an argument other than those allowed ?
+2. What happens if the user passes an argument twice, either in the same form (like two -x's) or in different forms (like -x and --x)
+3. What happens if the user passes an argument that isn't an integer ?
+4. What happens if the user passes an argument that isn't a valid operation ?
+5. What happens if the user passes an option, but no value where one is expected ?, (for example, -x -y 3)
+
+```python
+import enum
+import operator
+import sys
+
+operations = {
+    "add": operator.add,
+    "sub": operator.sub,
+    "mul": operator.mul,
+    "div": operator.floordiv
+}
+
+class Option(enum.Enum):
+    help = 0
+    xvalue = 1
+    yvalue = 2
+    operation = 3
+    
+options = {
+    "-h": Option.help,
+    "--help": Option.help,
+    "-x": Option.xvalue,
+    "--xvalue": Option.xvalue,
+    "-y": Option.yvalue,
+    "--yvalue": Option.yvalue,
+    "-o": Option.operation,
+    "--operation": Option.operation
+}
+
+
+def help():
+    print("Usage: arithmetic.py [options]")
+    print("Options:")
+    print("  -h, --help      show this help message and exit")
+    print("  -x, --xvalue    x value")
+    print("  -y, --yvalue    y value")
+    print("  -o, --operation The operation to perform from [add, sub, mul, div]")
+
+
+def main():
+    argv = sys.argv
+    x = None
+    y = None
+    operation = None
+    ptr = 1
+
+    while ptr < len(argv):
+        option = sys.argv[ptr]
+        if option in options:
+            this_option = options[option]
+            if this_option == Option.help:
+                help()
+                sys.exit(0)
+            elif this_option == Option.xvalue:
+                try:
+                    x = int(argv[ptr + 1])
+                except KeyError:
+                    print("Missing x value")
+                    sys.exit(1)
+                except ValueError:
+                    print(f"Invalid x value: {argv[ptr + 1]}")
+                    sys.exit(1)
+                ptr = ptr + 2
+            elif this_option == Option.yvalue:
+                try:
+                    y = int(argv[ptr + 1])
+                except KeyError:
+                    print("Missing y value")
+                    sys.exit(1)
+                except ValueError:
+                    print(f"Invalid y value: {argv[ptr + 1]}")
+                    sys.exit(1)
+                ptr = ptr + 2
+            elif this_option == Option.operation:
+                try:
+                    operation_text = argv[ptr + 1].lower()
+                except KeyError:
+                    print("Missing operation")
+                    sys.exit(1)
+                if operation_text in operations:
+                    operation = operations[operation_text]
+                else:
+                    print("Unknown operation: " + operation_text)
+                    help()
+                    sys.exit(1)
+                ptr = ptr + 2
+        else:
+            print("Unknown option: " + option)
+            help()
+            sys.exit(1)
+    print(operation(x, y))
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+```
+
+This was a lot of code, it took me about 15 minutes to write this, and I'm not sure it covers all the edge cases. It also has some DRY violations in handling the x and the y values, and it is not very extensible.
+
+The good news is, outside of an example like this, you should never do this.
+
+## Parsing with argparse.
+
+So the good news, Python has a standard library for parsing command line arguments, and it is called [argparse](https://docs.python.org/3/library/argparse.html). It is a very powerful library, and is very easy to use. Here is the same program, but using argparse.
+
+```python
+import argparse
+import operator
+import sys
+
+operations = {
+    "add": operator.add,
+    "sub": operator.sub,
+    "mul": operator.mul,
+    "div": operator.floordiv
+}
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-x", "--xvalue", type=int, help="x value")
+    parser.add_argument("-y", "--yvalue", type=int, help="y value")
+    parser.add_argument("-o", "--operation", type=str, choices=operations.keys(), help="The operation to perform")
+    args = parser.parse_args()
+
+    print(operations[args.operation](args.xvalue, args.yvalue))
+
+if __name__ == "__main__":
+    main()
+```
+
+Much simpler I'm sure you will agree.And here is the output.
+
+```shell
+$ python3 arithmetic2.py -x 10 -y 10 -o add
+20
+
+$ python3 arithmetic2.py -x 3 -y 6 -o mul
+18
+
+$ python3 arithmetic2.py -o mul -x 3 -y 6
+18
+```
+
+So this is a lot simpler than the manual parsing, and it is also much more extensible. It is also a lot more readable, and you can see the arguments and their types, and the choices for the operation. It also handles the duplicate argument case, and the help and error messages.
+
+This also handles help and error messages without any extra code. No help is defined, and no error messages or error handling is done manually, but these results exist.
+
+```shell
+$ python3 arithmetic2.py -x 3
+usage: arithmetic2.py [-h] -x XVALUE -y YVALUE -o {add,sub,mul,div}
+arithmetic2.py: error: the following arguments are required: -y/--yvalue, -o/--operation
+
+$ python3 arithmetic2.py -x 3.1415 -y 4 -o add
+usage: arithmetic2.py [-h] -x XVALUE -y YVALUE -o {add,sub,mul,div}
+arithmetic2.py: error: argument -x/--xvalue: invalid int value: '3.1415'
+
+$ python3 arithmetic2.py --help
+usage: arithmetic2.py [-h] -x XVALUE -y YVALUE -o {add,sub,mul,div}
+
+options:
+  -h, --help            show this help message and exit
+  -x XVALUE, --xvalue XVALUE
+                        x value
+  -y YVALUE, --yvalue YVALUE
+                        y value
+  -o {add,sub,mul,div}, --operation {add,sub,mul,div}
+                        The operation to perform
+```
+
+It also handles the duplicate argument case, by always using the last value.
+
+```shell
+$ python3 arithmetic2.py -x 3 -y 4 -o add
+7
+
+$ python3 arithmetic2.py -x 3 -x 4 -y 5 -o add
+9
+
+$ python3 arithmetic2.py -x 3 --xvalue 4 -y 5 -o add
+9
+```
+
+## Other languages.
+
+Some languages have CLI parses in the standard libraries, and some have them as third party packages. Some have one definitive option, and some have multiple. Here are some example from languages I know.
+
+- Python
+  - [argparse - standard library](https://docs.python.org/3/library/argparse.html)
+  - [click - third party package](https://click.palletsprojects.com/en/)
+  - [fire - third party package](https://github.com/google/python-fire)
+- Rust
+  - [clap - third party crate](https://docs.rs/clap/latest/clap/)
+- Lua
+  - [argparse - third party package](https://github.com/lunarmodules/argparse)
+- Go
+  - [flag - standard library](https://pkg.go.dev/flag)
+  - [kong - third party package](https://github.com/alecthomas/kong)
+
+## Takeaways.
+
+- Lean on a library to parse CLI arguments if you can.
+- If you can't, you should now be able to see how to handle it manually.
+- You can always tell what arguments a process has been run with, as it will remain in the memory of the process for the duration of execution.

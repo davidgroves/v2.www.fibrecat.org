@@ -1,0 +1,36 @@
+{
+  "name": "new.www.fibrecat.org",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "prebuild": "npm run fetch-albums",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "fetch-albums": "npx tsx scripts/fetch-album-metadata.ts",
+    "scrape:login": "npx tsx scripts/scrape-albums.ts --login",
+    "scrape": "npx tsx scripts/scrape-albums.ts",
+    "scrape:headed": "npx tsx scripts/scrape-albums.ts --headed",
+    "scrape:remote": "npx tsx scripts/scrape-albums.ts --login --headless --remote-debug"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.3.13",
+    "@astrojs/node": "^9.5.2",
+    "@astrojs/rss": "^4.0.15",
+    "@astrojs/sitemap": "^3.7.0",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/vite": "^4.1.18",
+    "astro": "^5.16.16",
+    "daisyui": "^5.5.14",
+    "katex": "^0.16.28",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.0",
+    "tsx": "^4.21.0"
+  }
+}

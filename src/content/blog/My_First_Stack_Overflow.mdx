@@ -1,0 +1,442 @@
+---
+title: My first stack overflow.
+description: What is a stack overflow other than just a website for fighting with other programmers ?
+pubDate: 2 December 2023
+heroImage: ../../assets/blog/smokestacks.jpeg
+heroCredit: Thomas T @ Unsplash
+heroLink: https://unsplash.com/photos/OPpCbAAKWv8
+heroAltText: A set of smokestacks.
+---
+
+## Stack Overflow.
+
+[StackOverflow](https://stackoverflow.co/) is a website you almost certainly know if you are a programmer. You might be
+an actual user of it, posting questions and answers. You might interact with it simply through Google, finding it is
+often the first suggestion for your progamming questions. You might also be the kind of 
+[gatekeeper](https://www.reddit.com/r/learnpython/comments/kewhy0/am_i_in_the_wrong_here_or_gatekeeping_in/) that people
+frequently complain about when it comes to the site.
+
+## What is a stack.
+
+The [wikipedia definition of a stack](https://en.wikipedia.org/wiki/Stack_(abstract_data_type)) is a reasonable one,
+but I'm going to look at a more concrete definition, as that is when I first discovered how the stack works. It is
+also important to note that **THE** stack in computing is quite distinct from **A** stack. You can create and use
+as many stacks as you like in a computer program, but every process has a single **THE** stack.
+
+## Stacks in Python.
+
+A queue you can only access at one end, where the last element in must be the first element out (LIFO) is a stack.
+
+Python has a standard library function for this kind of queue.
+
+```python
+import queue
+
+stack = queue.LifoQueue(maxsize=4)
+
+for i in range(8):
+    print(f"Adding {i} to the stack")
+    stack.put(i)
+    print(f"Stack is now {stack.queue}")
+```
+
+When run this produces.
+
+```
+Adding 0 to the stack
+Stack is now [0]
+Adding 1 to the stack
+Stack is now [0, 1]
+Adding 2 to the stack
+Stack is now [0, 1, 2]
+Adding 3 to the stack
+Stack is now [0, 1, 2, 3]
+Adding 4 to the stack
+```
+
+Note the program now hangs here. These kind of queues in Python are designed to be used to in multithreaded programs,
+and it is designed to just block and wait when the stack is full.
+
+## Our own overflowable stack.
+
+If we want to, we could build our own stack function that errors if it is full or empty. Something like.
+
+```python
+import typing
+
+class StackUnderflow(Exception):
+    pass
+
+class StackOverflow(Exception):
+    pass
+
+class Stack:
+    def __init__(self, maxsize: int = None, contents: typing.Sequence | None = None) -> None:
+        self.maxsize = maxsize
+        if not contents:
+            self.contents = []
+        else:
+            self.contents = list(contents)
+
+    def push(self, element: any):
+        print(f"Trying to add {element} to stack with contents {self.contents}")
+        if len(self.contents) == self.maxsize:
+            raise StackOverflow
+        self.contents.append(element)
+        
+    def pop(self) -> any:
+        if len(self.contents) == 0:
+            raise StackUnderflow
+        ret = self.contents.pop()
+        print(f"Removed {ret} from stack with contents {stack.contents}")
+        return ret
+
+stack = Stack(maxsize=4)
+stack.push("A")
+stack.push("B")
+stack.pop()
+stack.push("C")
+stack.push("D")
+stack.push("E")
+stack.push("F")
+```
+
+Which produces output
+
+```
+Trying to add A to stack with contents []
+Trying to add B to stack with contents ['A']
+Removed B from stack with contents ['A']
+Trying to add C to stack with contents ['A']
+Trying to add D to stack with contents ['A', 'C']
+Trying to add E to stack with contents ['A', 'C', 'D']
+Trying to add F to stack with contents ['A', 'C', 'D', 'E']
+Traceback (most recent call last):
+  File "stack.py", line 37, in <module>
+    stack.push("F")
+  File "stack.py", line 20, in push
+    raise StackOverflow
+__main__.StackOverflow
+```
+
+This is a pretty close analog to how *THE* stack works. It has a fixed size, and an error is produced when the stack is too full.
+
+To overflow a real process stack though, we will need a lower level programming language.
+
+## Call paths in C.
+
+Imagine I write code like this, in C.
+
+```c
+#include <stdio.h>
+
+void foo() {
+    printf("Running Foo\n");
+}
+
+void bar() {
+    printf("Running Bar\n");
+}
+
+int main() {
+    printf("Starting Main\n");
+    foo();
+    bar();
+    printf("Ending Main\n");
+    return 0;
+}
+```
+
+It is hopefully pretty obvious this produces.
+
+```
+Starting Main
+Running Foo
+Running Bar
+Ending Main
+```
+
+The code execution path is simple enough to follow. The lines of `main()` get executed one at a time, with detours into `foo()` and `bar()`. If you 
+indent calls, it would look like.
+
+```
+print "Starting Main"
+CALL foo()
+    print "Running Foo"
+CALL bar()
+    print "Running Bar"
+print "Ending Main"
+```
+
+We could rearrange this code to produce the same output, but with a different path, one that has two indents in it. This would be
+
+```c
+#include <stdio.h>
+
+void foo() {
+    printf("Running Foo\n");
+}
+
+void bar() {
+    foo();
+    printf("Running Bar\n");
+}
+
+int main() {
+    printf("Starting main\n");
+    bar();
+    printf("Ending main\n");
+    return 0;
+}
+```
+
+This subtle change moving the call for `foo()` inside `bar()` means we produce the same output as before, but the call path now looks like.
+
+```
+print "Starting Main"
+CALL bar()
+    CALL foo()
+        print "Running Foo"
+    print "Running Bar"
+print "Ending Main"
+```    
+
+## What is going on.
+
+If you throw this program into [Compiler Explorer](https://godbolt.org/), you get to see how the code is actually assembled. When compiled
+to [AMD64 / x86-64 Assembler](https://en.wikipedia.org/wiki/X86-64), you get this code.
+
+```asm
+.LC0:
+        .string "Running Foo"
+foo():
+        push    rbp
+        mov     rbp, rsp
+        mov     edi, OFFSET FLAT:.LC0
+        call    puts
+        nop
+        pop     rbp
+        ret
+.LC1:
+        .string "Running Bar"
+bar():
+        push    rbp
+        mov     rbp, rsp
+        call    foo()
+        mov     edi, OFFSET FLAT:.LC1
+        call    puts
+        nop
+        pop     rbp
+        ret
+.LC2:
+        .string "Starting main"
+.LC3:
+        .string "Ending main"
+main:
+        push    rbp
+        mov     rbp, rsp
+        mov     edi, OFFSET FLAT:.LC2
+        call    puts
+        call    bar()
+        mov     edi, OFFSET FLAT:.LC3
+        call    puts
+        mov     eax, 0
+        pop     rbp
+        ret
+```
+
+Here we can see the code uses an assembly memonic [CALL](https://www.felixcloutier.com/x86/call).
+
+The documentation here goes fairly deep, but the description is perfect for what we need to know here.
+
+```
+Saves procedure linking information on the stack and branches to the called procedure specified using the target operand.
+The target operand specifies the address of the first instruction in the called procedure. The operand can be an immediate value,
+a general-purpose register, or a memory location.
+```
+
+While a little more complex to follow than the simplified description I wrote before, we can see what is going on here by reading
+the assembly code. We have main, which does "some stuff", and then runs `call puts`. This is what prints things to the screen, so
+every instance of `call puts` is a `printf` in the original C. Then, the `call foo()` and `call bar()` are equivilent to the
+bare `foo()` and `bar()` in the original C.
+
+Reading that documentation on `CALL` again more carefully, you can see it talks about put things on the stack, but what
+uses those things on the stack. Well, that is the [ret memonic](https://www.felixcloutier.com/x86/ret). Reading the important
+part of that description, we find.
+
+```
+Transfers program control to a return address located on the top of the stack.
+```
+
+## A slightly simplified explanation.
+
+I'm not going to get into the details of addressing modes, near vs far return, or swapping ring levels as there is a lot 
+of depth and detail here and this is just a summary explanation of what is happening.
+
+But, every use of `CALL` puts an address on the process stack and moves execution into the function. At the end of every
+function, `RET` is called, the address `CALL` put onto the stack is taken and put as the next instruction to run.
+
+So here we can see the stack grows as we call nested functions, and empties once we are at the outermost indent level in
+code, or in the `main()` function in the case of a C program.
+
+## So what exactly is the stack.
+
+This varies from OS to OS, but on Linux, every process has a fixed size stack. This is where this data gets put when
+`CALL` gets executed inside it. You can find what this size is with the `ulimit` command. On my system running
+Debian 12, this was 8192 kilobytes, and you can verify that with `ulimit -s`.
+
+## Overflowing intentionally.
+
+So, lets make something that on purpose fills the stack. How ?. Simple, we will just write a C program that calls
+the same function over and over again, and see how it fails.
+
+```c
+#include <stdio.h>
+
+int call_depth = 0;
+
+void loop() {
+    printf("call depth is %i\n", call_depth);
+    call_depth++;
+    loop();
+}
+
+int main() {
+    loop();
+    return 0;
+}
+```
+
+And this program does.
+
+```
+call depth is 0
+call depth is 1
+call depth is 2
+...
+call depth is 523781
+call depth is 523782
+call depth is 523783
+Segmentation fault
+```
+
+As expected, we can only do this a finite number of times before we fail. The fact we can do it 523,783 times 
+gives us an idea of how much CALL is putting onto the stack. We have 8192kilobytes of stack space, so
+8192 * 1024 = 8,388,608 bytes of space. If we assume the stack is empty, and all it is used for is storing
+these return values, we can estimate we need `8388608 / 523783 = 16.01` bytes per stack entry. So it seems
+safe to estimate we are putting 16 bytes on the stack for each `CALL`.
+
+Can we find somewhere to prove this ?. Yes, this is the 
+[C x64 architecture calling convention](https://aaronbloomfield.github.io/pdr/book/x86-64bit-ccc-chapter.pdf). The minimum
+stuff that gets pushed on to the stack is 8 bytes of return address, and 8 bytes for data to pass
+to the callee. If 8 bytes of data isn't enough, it gets added to the stack as well, but is the responsbility
+of the callee to clean up before calling RET. If you aren't reading or writing assembly you don't need
+to care about any of this, your compiler will deal with it all for you.
+
+In the example above, we made a segmentation fault because we kept trying to add to the stack over and over
+until our program tried to write past the end of the stack, and the Linux operating system stepped in and killed
+the process to stop other memory being overwritten and unknown consequeunces occuring. 
+
+## My first stack overflow.
+
+So, how did I first discover stack overflows ?. It was in quite a different computing enviornment. It was
+on the first computer I ever owned, the [Commodore 16](https://en.wikipedia.org/wiki/Commodore_16). 
+It had similar assembly instructions to `CALL` and `RET`, but slightly different. The 6502 chip in it had [JSR](https://www.masswerk.at/6502/6502_instruction_set.html#JSR) 
+for Jump to Subroutine and [RTS](https://www.masswerk.at/6502/6502_instruction_set.html#RTS) for Return from subroutine.
+
+In the commodore 16 case though there was no operating system, and when writing in assembly on it, you had
+none of these safeguards.
+
+The [6502 CPU](https://en.wikipedia.org/wiki/MOS_Technology_6502) inside it had a single 8 bit register, 
+called `SP` for stack pointer. It pointed counted how far into the stack you were.
+There was 256 bytes of the computers RAM, always at 0x0100 to 0x01ff which contained the stack. When you used an
+instruction that either pushed something onto the stack implicitely, like [PHA](https://www.masswerk.at/6502/6502_instruction_set.html#PHA),
+or did so as part of how it worked like [JSR](https://www.masswerk.at/6502/6502_instruction_set.html#JSR), the stack pointer moved. If
+you ever overflowed the stack, the stack pointer just wrapped around to the start and started overwritting entries on the stack that
+something put there, and presumably something would later want to retrive, but it never would now.
+
+I discovered this while writing recursive assembly code trying to display very crude version of the
+[julia fractal set](https://en.wikipedia.org/wiki/Julia_set). My naive code would frequently end up putting more things on the stack
+than the stack had space for, and I'd end up with the program breaking in ways that were almost impossible to debug, particularly
+with my lack of experience at the time and the kind of tools you had to work with on a 1980's 8 bit microcomputer.
+
+## A modern recreation.
+
+Something similar to what this first overflow I experienced can be expressed in a modern language like Python with.
+
+```python
+import string
+
+class Stack:
+    def __init__(self, maxsize: int) -> None:
+        self.contents = [None] * maxsize
+        self.maxsize = maxsize
+        self._index = 0
+
+    def push(self, element: any):
+        self.contents[self._index] = element
+        if self._index == self.maxsize - 1:
+            self._index = 0
+        else:
+            self._index += 1
+        
+    def pop(self) -> any:
+        ret = self.contents[self._index]
+        if self._index == 0:
+            self._index = self.maxsize - 1
+        else:
+            self._index -= 1
+        return ret
+    
+    def __repr__(self) -> str:
+        return f"Stack has contents {self.contents} and index pointer {self._index}"
+        
+        
+stack = Stack(maxsize=4)
+for c in string.ascii_uppercase[0:7]:
+    stack.push(c)
+    print(stack)
+    
+print("================")
+
+for i in range(8):
+    print(stack)
+    p = stack.pop()
+    print(f"Popped {p} from stack")
+```
+
+Which results in this behaviour. We can overflow the stack without error, and just replace
+the start of the stack with what we push onto it. We can also underflow the stack without
+error, and we just get whatever was left at the other end of it. In reality things could have
+been even worse, as nothing short of pulling the power was likely to actually zero the memory,
+it was quite likely if you hadn't done that, whatever was left in the stack from the 
+last thing you did with the computer would still be there, and the results would be even more random
+than those None's suggest.
+
+
+```
+Stack has contents ['A', None, None, None] and index pointer 1
+Stack has contents ['A', 'B', None, None] and index pointer 2
+Stack has contents ['A', 'B', 'C', None] and index pointer 3
+Stack has contents ['A', 'B', 'C', 'D'] and index pointer 0
+Stack has contents ['E', 'B', 'C', 'D'] and index pointer 1
+Stack has contents ['E', 'F', 'C', 'D'] and index pointer 2
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 3
+================
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 3
+Popped D from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 2
+Popped G from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 1
+Popped F from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 0
+Popped E from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 3
+Popped D from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 2
+Popped G from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 1
+Popped F from stack
+Stack has contents ['E', 'F', 'G', 'D'] and index pointer 0
+Popped E from stack
+```
