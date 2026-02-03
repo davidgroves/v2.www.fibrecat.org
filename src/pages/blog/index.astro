@@ -20,17 +20,17 @@ const posts = (await getCollection('blog', ({ data }) => !data.draft))
       </div>
     ) : (
       <div class="overflow-x-auto">
-        <table class="table table-zebra w-full">
+        <table class="table table-zebra w-full text-lg">
           <thead>
             <tr>
-              <th class="w-32">Date</th>
+              <th class="min-w-44">Date</th>
               <th>Title</th>
             </tr>
           </thead>
           <tbody>
             {posts.map((post) => (
               <tr class="hover">
-                <td class="text-base-content/70">
+                <td class="text-base-content/70 whitespace-nowrap">
                   <FormattedDate date={post.data.pubDate} />
                 </td>
                 <td>
