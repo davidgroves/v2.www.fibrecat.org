@@ -18,8 +18,10 @@ COPY src/data/albums.json src/data/
 # Use committed src/data/albums.json instead.
 ENV SKIP_FETCH_ALBUMS=1
 
-# Build the application
-RUN bun run build
+# Build the application (cache mounts speed up content-only rebuilds)
+RUN --mount=type=cache,target=/app/node_modules/.vite \
+    --mount=type=cache,target=/app/.astro \
+    bun run build
 
 # Production dependencies only (Bun doesn't have prune; reinstall without dev)
 RUN rm -rf node_modules && bun install --production
@@ -35,6 +37,8 @@ RUN addgroup --system --gid 1001 bunjs && adduser --system --uid 1001 astro
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
+# Photos page is SSR and reads albums.json at request time
+COPY --from=builder /app/src/data/albums.json ./src/data/
 
 # Set ownership
 RUN chown -R astro:bunjs /app

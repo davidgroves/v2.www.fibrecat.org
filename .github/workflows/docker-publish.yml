@@ -11,26 +11,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-with-bun:
-    name: Build with Bun
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build
-        run: bun run build
-
   build:
-    needs: build-with-bun
     strategy:
       fail-fast: false
       matrix:
@@ -51,11 +32,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Check albums.json in build context
-        run: |
-          ls -la src/data/albums.json 2>/dev/null || echo "FILE MISSING"
-          head -c 200 src/data/albums.json 2>/dev/null || true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
