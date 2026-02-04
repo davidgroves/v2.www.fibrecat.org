@@ -5,6 +5,15 @@
 /* KaTeX styles for math rendering */
 @import "katex/dist/katex.min.css";
 
+/* Fallback font with similar metrics to Open Sans (reduces layout shift on swap) */
+@font-face {
+  font-family: 'OpenSans Fallback';
+  src: local('Arial');
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22%;
+}
+
 /* Custom font */
 @font-face {
   font-family: 'OpenSans';
@@ -32,7 +41,7 @@
 
 /* DaisyUI theme configuration */
 @theme {
-  --font-sans: 'OpenSans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'OpenSans', 'OpenSans Fallback', ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Base styles */

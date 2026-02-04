@@ -85,6 +85,8 @@ const hasLegacyData = albums.some(a => a.year && a.country);
                 <img 
                   src={album.coverImageUrl} 
                   alt={album.title}
+                  width={400}
+                  height={225}
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                   loading="lazy"
                 />

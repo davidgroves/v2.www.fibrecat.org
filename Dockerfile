@@ -33,12 +33,10 @@ WORKDIR /app
 # Create non-root user for security
 RUN addgroup --system --gid 1001 bunjs && adduser --system --uid 1001 astro
 
-# Copy production dependencies and built app from builder
+# Copy production dependencies and built static site from builder
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
-# Photos page is SSR and reads albums.json at request time
-COPY --from=builder /app/src/data/albums.json ./src/data/
 
 # Set ownership
 RUN chown -R astro:bunjs /app
@@ -53,5 +51,5 @@ ENV NODE_ENV=production
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4321/ || exit 1
 
-# Run the Astro Node adapter server with Bun
-CMD ["bun", "run", "./dist/server/entry.mjs"]
+# Serve static files
+CMD ["bun", "run", "start"]

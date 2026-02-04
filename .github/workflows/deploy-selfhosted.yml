@@ -1,0 +1,33 @@
+name: Build and deploy (self-hosted)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+        env:
+          SKIP_FETCH_ALBUMS: 1
+
+      - name: Deploy to Caddy root
+        run: |
+          DEPLOY_ROOT="/var/www/fibrecat"
+          rm -rf "${DEPLOY_ROOT:?}"/*
+          cp -a dist/. "$DEPLOY_ROOT"
