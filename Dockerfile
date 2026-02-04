@@ -11,8 +11,8 @@ RUN bun install
 # Copy source code
 COPY . .
 
-# Debug: verify albums.json is present in build context
-RUN ls -la src/data/albums.json && head -c 200 src/data/albums.json
+# Ensure albums.json is from current build context (avoids stale COPY . . cache)
+COPY src/data/albums.json src/data/
 
 # Skip fetch-albums in Docker (uses Playwright/Chromium; not supported in Alpine).
 # Use committed src/data/albums.json instead.
