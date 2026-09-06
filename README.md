@@ -64,14 +64,58 @@ src/
 
 ## Deployment
 
-The site is automatically built and pushed to GitHub Container Registry on push to `main`:
+Hosting is **Railway** with continuous deploy from GitHub Actions on every push to `main`.
+
+| URL | Notes |
+|---|---|
+| https://web-production-655b1.up.railway.app | Railway default service URL |
+| https://www.fibrecat.org | Custom domain (primary / `SITE_URL`) |
+| https://fibrecat.org | Apex custom domain |
+
+### Release
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/davidgroves/new.www.fibrecat.org:latest
+git push origin main
+# or: GitHub → Actions → "Deploy to Railway" → Run workflow
+```
 
-# Run the container
-docker run -p 4321:4321 ghcr.io/davidgroves/new.www.fibrecat.org:latest
+The workflow builds with Bun (`SKIP_FETCH_ALBUMS=1`), then deploys via the Railway CLI (`railway up`).
+
+### Secrets / variables (GitHub)
+
+- **Secret** `RAILWAY_API_TOKEN` — account-scoped Railway API token (same account as other Railway projects)
+- **Variables** `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT` (`production`)
+
+### Railway / Docker notes
+
+- Image is built from the repo `Dockerfile` (Bun build → `serve` static `dist/`).
+- Runtime listens on Railway’s `$PORT` (default `4321` locally).
+- Set `SKIP_FETCH_ALBUMS=1` for Docker/CI so album metadata comes from committed `src/data/albums.json`.
+
+### DNS (GoDaddy)
+
+Configured for Railway:
+
+| Host | Type | Value |
+|---|---|---|
+| `www` | CNAME | `kxapjkhd.up.railway.app` |
+| `@` | A | `69.46.46.6` / `69.46.46.98` (Railway edge IPs; GoDaddy does not support apex CNAME) |
+| `_railway-verify.www` | TXT | Railway ownership verification |
+| `_railway-verify` | TXT | Railway ownership verification |
+
+Re-check targets anytime with `railway domain status www.fibrecat.org` / `railway domain status fibrecat.org`.
+
+### Optional: self-hosted Caddy
+
+`.github/workflows/deploy-selfhosted.yml` is **manual only** (`workflow_dispatch`) after the Railway cutover.
+
+### GitHub Container Registry
+
+Images are still published to GHCR on push to `main` (independent of Railway):
+
+```bash
+docker pull ghcr.io/davidgroves/v2.www.fibrecat.org:latest
+docker run -p 4321:4321 -e PORT=4321 ghcr.io/davidgroves/v2.www.fibrecat.org:latest
 ```
 
 ## Features

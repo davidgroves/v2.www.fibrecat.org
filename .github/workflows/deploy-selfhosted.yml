@@ -1,8 +1,7 @@
 name: Build and deploy (self-hosted)
 
+# Manual-only after Railway cutover. Do not run on every push to main.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

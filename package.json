@@ -15,7 +15,7 @@
     "scrape:remote": "bun scripts/scrape-albums.ts --login --headless --remote-debug",
     "test": "playwright test",
     "test:e2e": "playwright test",
-    "start": "serve dist -l 4321"
+    "start": "serve dist -l tcp://0.0.0.0:${PORT:-4321}"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",

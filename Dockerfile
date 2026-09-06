@@ -18,10 +18,8 @@ COPY src/data/albums.json src/data/
 # Use committed src/data/albums.json instead.
 ENV SKIP_FETCH_ALBUMS=1
 
-# Build the application (cache mounts speed up content-only rebuilds)
-RUN --mount=type=cache,target=/app/node_modules/.vite \
-    --mount=type=cache,target=/app/.astro \
-    bun run build
+# Build the application (no BuildKit cache mounts — Railway's builder rejects them)
+RUN bun run build
 
 # Production dependencies only (Bun doesn't have prune; reinstall without dev)
 RUN rm -rf node_modules && bun install --production
@@ -49,7 +47,7 @@ ENV PORT=4321
 ENV NODE_ENV=production
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4321/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-4321}/ || exit 1
 
-# Serve static files
+# Serve static files (honors Railway $PORT)
 CMD ["bun", "run", "start"]

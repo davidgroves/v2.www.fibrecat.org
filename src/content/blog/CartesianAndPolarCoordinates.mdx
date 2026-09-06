@@ -1,0 +1,288 @@
+---
+title: Cartesian and Polar Coordinates
+description: A simple look at Cartesian and polar coordinates in 2D, and how the same ideas extend into 3D.
+pubDate: 6 September 2026
+heroImage: ../../assets/blog/mathematical_proof.jpeg
+heroCredit: Parrish Freeman @ Unsplash
+heroLink: https://unsplash.com/photos/T0Cst1M37nc
+heroAltText: Mathematics written on a whiteboard.
+draft: false
+---
+
+import Latex from '../../components/Latex.astro';
+
+## Why two systems?
+
+If you have ever used graph paper, you already know [Cartesian coordinates](https://en.wikipedia.org/wiki/Cartesian_coordinate_system).
+A point is named by how far along and how far up it is.
+
+That is not always the most convenient way to talk about a point.
+Sometimes you care about distance from a centre, and the angle around that centre.
+That is what [polar coordinates](https://en.wikipedia.org/wiki/Polar_coordinate_system) are for.
+
+This article covers both on the flat 2D plane, then the usual 3D versions:
+ordinary *(x, y, z)*, [cylindrical](https://en.wikipedia.org/wiki/Cylindrical_coordinate_system), and [spherical](https://en.wikipedia.org/wiki/Spherical_coordinate_system) coordinates.
+
+## 2D Cartesian coordinates
+
+Draw two axes that cross at right angles at the **origin**.
+
+- **x** goes right
+- **y** goes up
+
+A point is written *(x, y)*.
+For example *(3, 4)* means "3 right and 4 up".
+
+<figure class="not-prose my-8 mx-auto max-w-md text-base-content">
+  <svg viewBox="0 0 320 280" class="w-full h-auto" role="img" aria-label="2D Cartesian axes with point at x equals 3, y equals 4">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <line x1="40" y1="220" x2="290" y2="220" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)" />
+    <line x1="40" y1="220" x2="40" y2="30" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)" />
+    <text x="295" y="225" font-size="16" fill="currentColor">x</text>
+    <text x="28" y="28" font-size="16" fill="currentColor">y</text>
+    <text x="28" y="235" font-size="14" fill="currentColor">O</text>
+    <line x1="40" y1="100" x2="160" y2="100" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6" />
+    <line x1="160" y1="220" x2="160" y2="100" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6" />
+    <circle cx="160" cy="100" r="5" fill="currentColor" />
+    <text x="170" y="95" font-size="15" fill="currentColor">(3, 4)</text>
+    <text x="90" y="240" font-size="13" fill="currentColor">x = 3</text>
+    <text x="8" y="165" font-size="13" fill="currentColor">y = 4</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">A point on the Cartesian plane.</figcaption>
+</figure>
+
+The distance from the origin to *(x, y)* uses Pythagoras:
+
+<Latex formula='r = \sqrt{x^2 + y^2}' />
+
+So for (3, 4):
+
+<Latex formula='r = \sqrt{3^2 + 4^2} = 5' />
+
+## 2D polar coordinates
+
+Polar coordinates ask a different pair of questions:
+
+- how far from the origin? Call that **r**
+- what angle from the positive x-axis? Call that **θ** (theta)
+
+A point is written *(r, θ)*.
+Angles are usually measured **anticlockwise** from the positive x-axis.
+
+<figure class="not-prose my-8 mx-auto max-w-md text-base-content">
+  <svg viewBox="0 0 320 280" class="w-full h-auto" role="img" aria-label="2D polar coordinates showing radius r and angle theta">
+    <defs>
+      <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <line x1="40" y1="220" x2="290" y2="220" stroke="currentColor" stroke-width="2" marker-end="url(#arrow2)" />
+    <line x1="40" y1="220" x2="40" y2="30" stroke="currentColor" stroke-width="2" marker-end="url(#arrow2)" />
+    <text x="295" y="225" font-size="16" fill="currentColor">x</text>
+    <text x="28" y="28" font-size="16" fill="currentColor">y</text>
+    <path d="M 90 220 A 50 50 0 0 0 75.36 177.55" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <text x="95" y="195" font-size="15" fill="currentColor">θ</text>
+    <line x1="40" y1="220" x2="160" y2="100" stroke="currentColor" stroke-width="2" />
+    <circle cx="160" cy="100" r="5" fill="currentColor" />
+    <text x="170" y="95" font-size="15" fill="currentColor">(r, θ)</text>
+    <text x="85" y="155" font-size="14" fill="currentColor">r</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">The same point, described with a radius and an angle.</figcaption>
+</figure>
+
+### Converting between them
+
+From Cartesian to polar:
+
+<Latex formula='r = \sqrt{x^2 + y^2}' />
+
+<Latex formula='\theta = \operatorname{atan2}(y, x)' />
+
+From polar to Cartesian:
+
+<Latex formula='x = r \cos \theta' />
+
+<Latex formula='y = r \sin \theta' />
+
+Use `atan2(y, x)` rather than plain `arctan(y/x)`.
+The plain version loses which quadrant you are in.
+
+For *(3, 4)* you get *r = 5* and *θ ≈ 53°*.
+Same point, two labels.
+
+### Which one is nicer?
+
+A circle of radius 5 around the origin looks like this in Cartesian:
+
+<Latex formula='x^2 + y^2 = 25' />
+
+And like this in polar:
+
+<Latex formula='r = 5' />
+
+That is the whole point of polar coordinates: they make round things simple.
+
+Use Cartesian for grids, screens, and left/right/up/down motion.
+Use polar when there is a natural centre and rotation around it.
+
+## Into 3D
+
+Add a third axis, **z**, pointing "up" out of the page.
+A point becomes *(x, y, z)*.
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 360 300" class="w-full h-auto" role="img" aria-label="3D Cartesian axes x, y, and z with a labelled point">
+    <defs>
+      <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <line x1="180" y1="200" x2="60" y2="260" stroke="currentColor" stroke-width="2" marker-end="url(#arrow3)" />
+    <text x="40" y="270" font-size="16" fill="currentColor">y</text>
+    <line x1="180" y1="200" x2="320" y2="200" stroke="currentColor" stroke-width="2" marker-end="url(#arrow3)" />
+    <text x="325" y="205" font-size="16" fill="currentColor">x</text>
+    <line x1="180" y1="200" x2="180" y2="40" stroke="currentColor" stroke-width="2" marker-end="url(#arrow3)" />
+    <text x="188" y="40" font-size="16" fill="currentColor">z</text>
+    <text x="168" y="215" font-size="13" fill="currentColor">O</text>
+    <line x1="180" y1="200" x2="250" y2="200" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" />
+    <line x1="250" y1="200" x2="230" y2="230" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" />
+    <line x1="230" y1="230" x2="230" y2="120" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" />
+    <line x1="180" y1="200" x2="230" y2="120" stroke="currentColor" stroke-width="2" />
+    <circle cx="230" cy="120" r="5" fill="currentColor" />
+    <text x="240" y="115" font-size="15" fill="currentColor">(x, y, z)</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">3D Cartesian coordinates: width, depth, and height.</figcaption>
+</figure>
+
+Distance from the origin is still Pythagoras, just with one more term:
+
+<Latex formula='r = \sqrt{x^2 + y^2 + z^2}' />
+
+In 3D, "polar" splits into two common systems.
+
+### Cylindrical coordinates
+
+Keep 2D polar in the floor plane, then add height *z*.
+
+A point is written (ρ, φ, z):
+
+- ρ (rho): distance from the z-axis
+- φ (phi): angle around the z-axis
+- z: height
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 360 300" class="w-full h-auto" role="img" aria-label="Cylindrical coordinates showing rho, phi, and z">
+    <defs>
+      <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <ellipse cx="180" cy="220" rx="110" ry="35" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
+    <line x1="180" y1="220" x2="180" y2="40" stroke="currentColor" stroke-width="2" marker-end="url(#arrow4)" />
+    <text x="188" y="40" font-size="16" fill="currentColor">z</text>
+    <line x1="180" y1="220" x2="290" y2="220" stroke="currentColor" stroke-width="1.5" opacity="0.7" />
+    <text x="295" y="225" font-size="14" fill="currentColor">x</text>
+    <path d="M 230 220 A 50 16 0 0 0 215 205" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <text x="235" y="205" font-size="14" fill="currentColor">φ</text>
+    <line x1="180" y1="220" x2="250" y2="200" stroke="currentColor" stroke-width="2" />
+    <text x="205" y="225" font-size="14" fill="currentColor">ρ</text>
+    <line x1="250" y1="200" x2="250" y2="110" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" />
+    <text x="258" y="160" font-size="14" fill="currentColor">z</text>
+    <line x1="180" y1="220" x2="250" y2="110" stroke="currentColor" stroke-width="1.5" opacity="0.5" />
+    <circle cx="250" cy="110" r="5" fill="currentColor" />
+    <text x="260" y="105" font-size="15" fill="currentColor">(ρ, φ, z)</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">Cylindrical: polar on the floor, plus height.</figcaption>
+</figure>
+
+Useful for pipes, screws, and anything with a clear axis to spin around.
+A vertical cylinder of radius 2 is simply *ρ = 2*.
+
+Conversions:
+
+<Latex formula='\rho = \sqrt{x^2 + y^2}' />
+
+<Latex formula='x = \rho \cos \varphi,\quad y = \rho \sin \varphi,\quad z = z' />
+
+### Spherical coordinates
+
+Now measure everything from the **origin**, with one radius and two angles.
+
+A point is written (r, θ, φ) in the common physics convention:
+
+- r: distance from the origin
+- θ: angle down from the positive z-axis (0 at the "north pole")
+- φ: angle around the z-axis (same idea as in cylindrical)
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 360 300" class="w-full h-auto" role="img" aria-label="Spherical coordinates showing r, theta, and phi">
+    <defs>
+      <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <ellipse cx="180" cy="160" rx="90" ry="90" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35" />
+    <ellipse cx="180" cy="160" rx="90" ry="28" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35" />
+    <line x1="180" y1="160" x2="180" y2="40" stroke="currentColor" stroke-width="2" marker-end="url(#arrow5)" />
+    <text x="188" y="40" font-size="16" fill="currentColor">z</text>
+    <line x1="180" y1="160" x2="290" y2="160" stroke="currentColor" stroke-width="1.5" opacity="0.7" />
+    <text x="295" y="165" font-size="14" fill="currentColor">x</text>
+    <line x1="180" y1="160" x2="250" y2="100" stroke="currentColor" stroke-width="2" />
+    <text x="205" y="120" font-size="14" fill="currentColor">r</text>
+    <path d="M 180 100 A 40 40 0 0 1 218 118" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <text x="200" y="95" font-size="14" fill="currentColor">θ</text>
+    <path d="M 220 160 A 40 12 0 0 0 205 152" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <text x="225" y="150" font-size="14" fill="currentColor">φ</text>
+    <circle cx="250" cy="100" r="5" fill="currentColor" />
+    <text x="260" y="95" font-size="15" fill="currentColor">(r, θ, φ)</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">Spherical: one radius from the origin, plus two angles.</figcaption>
+</figure>
+
+Useful for spheres, sky directions, and anything measured from a centre.
+A sphere of radius 3 is simply *r = 3*.
+
+Conversions:
+
+<Latex formula='x = r \sin \theta \cos \varphi' />
+
+<Latex formula='y = r \sin \theta \sin \varphi' />
+
+<Latex formula='z = r \cos \theta' />
+
+Watch out: maths textbooks sometimes swap the names of *θ* and *φ*.
+Always check the diagram in whatever book or page you are reading.
+
+## A quick comparison
+
+| Situation | Natural choice |
+|---|---|
+| Grid, screen, room | Cartesian |
+| Circle / spin in a plane | Polar |
+| Pipe / screw / shaft | Cylindrical |
+| Sphere / sky directions | Spherical |
+
+Or shorter still:
+
+- Cartesian measures **along axes**
+- Polar-style systems measure **by radius and angle(s)**
+
+## A few gotchas
+
+- At the origin, *r = 0* and the angle is undefined.
+- Angles wrap around: *θ* and *θ + 360°* are the same direction.
+- In cylindrical, *ρ* is distance from the **axis**. In spherical, *r* is distance from the **origin**. Those are different.
+
+## Closing thought
+
+Coordinate systems are not competing truths about space.
+They are competing *labels*.
+
+The geometry stays the same.
+What changes is which numbers make the next equation short.
+If *r = 5* is shorter than *x² + y² = 25*, that is not a different universe.
+It is the same circle, spoken in a dialect that fits it better.
