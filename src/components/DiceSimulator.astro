@@ -1,0 +1,341 @@
+---
+/**
+ * Interactive two-dice sum simulator.
+ * Rolls X times (1–10,000), histograms the sums, and scores the
+ * fair-dice assertion with Pearson's chi-squared goodness of fit.
+ */
+---
+
+<div
+  id="dice-simulator"
+  class="not-prose my-8 rounded-xl border border-base-300 bg-base-200/70 p-4 sm:p-6 shadow-sm"
+>
+  <div class="flex flex-col gap-1 mb-4">
+    <p class="text-lg font-semibold m-0">Two-dice simulator</p>
+    <p class="text-sm text-base-content/70 m-0">
+      Roll a pair of fair d6 in your browser, then compare the counts you actually got
+      against the counts the 36-outcome model says you should expect.
+    </p>
+  </div>
+
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+    <label class="form-control w-full sm:max-w-xs">
+      <span class="label-text font-medium mb-1 block">Number of rolls (X)</span>
+      <input
+        id="dice-x-range"
+        type="range"
+        min="1"
+        max="10000"
+        value="200"
+        class="range range-primary range-sm"
+        aria-valuemin="1"
+        aria-valuemax="10000"
+      />
+    </label>
+    <label class="form-control">
+      <span class="sr-only">Number of rolls</span>
+      <input
+        id="dice-x-input"
+        type="number"
+        min="1"
+        max="10000"
+        value="200"
+        class="input input-bordered w-28"
+      />
+    </label>
+    <div class="flex flex-wrap gap-2">
+      <button id="dice-roll" type="button" class="btn btn-primary">Roll X times</button>
+      <button id="dice-example" type="button" class="btn btn-outline">
+        10,000-roll example
+      </button>
+    </div>
+  </div>
+
+  <figure class="mt-6">
+    <svg
+      id="dice-chart"
+      viewBox="0 0 640 320"
+      class="w-full h-auto text-base-content"
+      role="img"
+      aria-labelledby="dice-chart-title dice-chart-desc"
+    >
+      <title id="dice-chart-title">Observed sums versus expected counts</title>
+      <desc id="dice-chart-desc">Bar chart of dice-sum frequencies from 2 to 12.</desc>
+    </svg>
+    <figcaption class="text-center text-sm text-base-content/60 mt-2">
+      Blue bars are what you rolled. The outline bars are the expected counts
+      from two fair dice.
+    </figcaption>
+  </figure>
+
+  <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="rounded-lg bg-base-100 px-3 py-2">
+      <div class="text-xs tracking-wide text-base-content/60">Rolls</div>
+      <div id="dice-stat-n" class="text-lg font-semibold tabular-nums">—</div>
+    </div>
+    <div class="rounded-lg bg-base-100 px-3 py-2">
+      <div class="text-xs tracking-wide text-base-content/60">Sample mean</div>
+      <div id="dice-stat-mean" class="text-lg font-semibold tabular-nums">—</div>
+      <div class="text-xs text-base-content/50">expected value is 7</div>
+    </div>
+    <div class="rounded-lg bg-base-100 px-3 py-2">
+      <div class="text-xs tracking-wide text-base-content/60">Chi-squared</div>
+      <div id="dice-stat-chi" class="text-lg font-semibold tabular-nums">—</div>
+    </div>
+    <div class="rounded-lg bg-base-100 px-3 py-2">
+      <div class="text-xs tracking-wide text-base-content/60">p-value</div>
+      <div id="dice-stat-p" class="text-lg font-semibold tabular-nums">—</div>
+    </div>
+  </div>
+
+  <p id="dice-verdict" class="mt-4 text-sm leading-relaxed"></p>
+
+  <details class="mt-3">
+    <summary class="cursor-pointer text-sm font-medium">Count table</summary>
+    <div class="overflow-x-auto mt-2">
+      <table id="dice-table" class="table table-zebra table-sm">
+        <thead>
+          <tr>
+            <th>Sum</th>
+            <th>Ways</th>
+            <th>Expected</th>
+            <th>Observed</th>
+            <th>(O − E)² / E</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
+</div>
+
+<script>
+  const SUMS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const WAYS = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1];
+  const ARTICLE_SEED = 20260919;
+  const MIN_N_FOR_P = 180; // all expected counts >= 5 when n >= 5 * 36
+
+  function mulberry32(a: number) {
+    return function () {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function clampX(raw: string | number) {
+    const n = Math.round(Number(raw));
+    if (!Number.isFinite(n)) return 200;
+    return Math.min(10000, Math.max(1, n));
+  }
+
+  function rollCounts(n: number, rng: () => number) {
+    const counts = Array(11).fill(0);
+    for (let i = 0; i < n; i++) {
+      const d1 = 1 + Math.floor(rng() * 6);
+      const d2 = 1 + Math.floor(rng() * 6);
+      counts[d1 + d2 - 2] += 1;
+    }
+    return counts;
+  }
+
+  function chiSquared(observed: number[], n: number) {
+    let chi = 0;
+    const terms = observed.map((o, i) => {
+      const expected = (n * WAYS[i]) / 36;
+      const term = expected > 0 ? (o - expected) ** 2 / expected : 0;
+      chi += term;
+      return { expected, term };
+    });
+    return { chi, terms };
+  }
+
+  // Survival function of χ² with 10 degrees of freedom.
+  // For even df = 2m, P(χ²_{2m} > x) = P(Poisson(x/2) < m).
+  function chiSquare10PValue(chi: number) {
+    if (!(chi >= 0) || !Number.isFinite(chi)) return NaN;
+    if (chi === 0) return 1;
+    const lambda = chi / 2;
+    if (lambda > 700) return 0;
+    let term = Math.exp(-lambda);
+    let sum = term;
+    for (let k = 1; k <= 4; k++) {
+      term *= lambda / k;
+      sum += term;
+    }
+    return Math.min(1, Math.max(0, sum));
+  }
+
+  function formatP(p: number) {
+    if (!Number.isFinite(p)) return '—';
+    if (p < 0.0001) return '< 0.0001';
+    if (p < 0.001) return p.toExponential(2);
+    return p.toFixed(3);
+  }
+
+  function niceMax(x: number) {
+    if (x <= 1) return 1;
+    const mag = 10 ** Math.floor(Math.log10(x));
+    const n = x / mag;
+    const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return nice * mag;
+  }
+
+  function verdict(n: number, chi: number, p: number) {
+    if (n < MIN_N_FOR_P) {
+      return `With only ${n.toLocaleString()} rolls, some expected counts are below 5, so the p-value is a rough sketch rather than a trustworthy score. Try X ≥ ${MIN_N_FOR_P}. The χ² mismatch score is still a fair visual summary: ${chi.toFixed(2)}.`;
+    }
+    const pct = p >= 0.01 ? Math.round(p * 100) : Math.round(p * 1000) / 10;
+    if (p >= 0.05) {
+      return `Compatible with two fair dice. If the assertion were true, a mismatch this large (or larger) would show up about ${pct}% of the time. That is a test against the claim, not a test for it: you have no reason to reject it, and you still have not proved it.`;
+    }
+    if (p >= 0.01) {
+      return `A bit unusual for two fair dice (p = ${formatP(p)}). Results like this happen, but they are uncommon. I would not call this certain either way.`;
+    }
+    if (p >= 0.001) {
+      return `Unlikely under the fair-dice assertion (p = ${formatP(p)}). If you had to bet, you would bet against “these counts came from two fair d6”, but a rare fair run is still possible.`;
+    }
+    return `Very unlikely under the fair-dice assertion (p = ${formatP(p)}). This is the sort of score you get when the dice are loaded, the generator is broken, or someone typed the counts in by hand. It is still not a mathematical proof.`;
+  }
+
+  function drawChart(svg: SVGElement, observed: number[], n: number) {
+    const expected = WAYS.map((w) => (n * w) / 36);
+    const yMax = niceMax(Math.max(1, ...observed, ...expected) * 1.08);
+    const W = 640;
+    const H = 320;
+    const padL = 48;
+    const padR = 12;
+    const padT = 36;
+    const padB = 44;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+    const groupW = innerW / 11;
+    const y = (v: number) => padT + innerH - (v / yMax) * innerH;
+
+    const ticks = 4;
+    let grid = '';
+    for (let i = 0; i <= ticks; i++) {
+      const v = (yMax * i) / ticks;
+      const yy = y(v).toFixed(1);
+      grid += `<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="currentColor" stroke-opacity="0.12" />`;
+      grid += `<text x="${padL - 8}" y="${Number(yy) + 4}" text-anchor="end" font-size="11" fill="currentColor" fill-opacity="0.7">${Math.round(v)}</text>`;
+    }
+
+    let bars = '';
+    observed.forEach((o, i) => {
+      const x0 = padL + i * groupW;
+      const barW = groupW * 0.36;
+      const gap = groupW * 0.08;
+      const e = expected[i];
+      const oh = ((o / yMax) * innerH);
+      const eh = ((e / yMax) * innerH);
+      bars += `<rect x="${(x0 + gap).toFixed(1)}" y="${(y(o)).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, oh).toFixed(1)}" class="fill-primary" opacity="0.9" rx="2" />`;
+      bars += `<rect x="${(x0 + gap + barW + 2).toFixed(1)}" y="${(y(e)).toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, eh).toFixed(1)}" fill="none" stroke="currentColor" stroke-width="1.75" opacity="0.75" rx="2" />`;
+      bars += `<text x="${(x0 + groupW / 2).toFixed(1)}" y="${H - 18}" text-anchor="middle" font-size="12" fill="currentColor">${SUMS[i]}</text>`;
+    });
+
+    const legend = `
+      <g font-size="12" fill="currentColor">
+        <rect x="${padL}" y="6" width="12" height="12" class="fill-primary" opacity="0.9" rx="2" />
+        <text x="${padL + 18}" y="16">Observed</text>
+        <rect x="${padL + 110}" y="6" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.75" opacity="0.75" rx="2" />
+        <text x="${padL + 128}" y="16">Expected</text>
+      </g>
+    `;
+
+    svg.innerHTML = `
+      <title>Observed sums versus expected counts</title>
+      ${grid}
+      ${bars}
+      ${legend}
+      <text x="${W / 2}" y="${H - 4}" text-anchor="middle" font-size="12" fill="currentColor" fill-opacity="0.7">Sum of two dice</text>
+      <text x="14" y="${padT + innerH / 2}" text-anchor="middle" font-size="12" fill="currentColor" fill-opacity="0.7" transform="rotate(-90 14 ${padT + innerH / 2})">Count</text>
+    `;
+  }
+
+  function fillTable(tbody: HTMLTableSectionElement, observed: number[], n: number, terms: { expected: number; term: number }[]) {
+    tbody.innerHTML = observed
+      .map((o, i) => {
+        return `<tr>
+          <td>${SUMS[i]}</td>
+          <td>${WAYS[i]} / 36</td>
+          <td class="tabular-nums">${terms[i].expected.toFixed(2)}</td>
+          <td class="tabular-nums">${o}</td>
+          <td class="tabular-nums">${terms[i].term.toFixed(3)}</td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  function render(root: HTMLElement, n: number, observed: number[]) {
+    const { chi, terms } = chiSquared(observed, n);
+    const p = chiSquare10PValue(chi);
+    const mean =
+      observed.reduce((acc, o, i) => acc + o * SUMS[i], 0) / n;
+
+    const svg = root.querySelector<SVGElement>('#dice-chart');
+    const tbody = root.querySelector<HTMLTableSectionElement>('#dice-table tbody');
+    if (svg) drawChart(svg, observed, n);
+    if (tbody) fillTable(tbody, observed, n, terms);
+
+    const set = (id: string, value: string) => {
+      const el = root.querySelector(id);
+      if (el) el.textContent = value;
+    };
+    set('#dice-stat-n', n.toLocaleString());
+    set('#dice-stat-mean', mean.toFixed(3));
+    set('#dice-stat-chi', chi.toFixed(2));
+    set('#dice-stat-p', n < MIN_N_FOR_P ? `${formatP(p)}*` : formatP(p));
+
+    const verdictEl = root.querySelector('#dice-verdict');
+    if (verdictEl) verdictEl.textContent = verdict(n, chi, p);
+  }
+
+  function bind(root: HTMLElement) {
+    if (root.dataset.bound === 'true') return;
+    root.dataset.bound = 'true';
+
+    const range = root.querySelector<HTMLInputElement>('#dice-x-range');
+    const input = root.querySelector<HTMLInputElement>('#dice-x-input');
+    const rollBtn = root.querySelector<HTMLButtonElement>('#dice-roll');
+    const exampleBtn = root.querySelector<HTMLButtonElement>('#dice-example');
+    if (!range || !input || !rollBtn || !exampleBtn) return;
+
+    const syncX = (value: string | number) => {
+      const x = clampX(value);
+      range.value = String(x);
+      input.value = String(x);
+      return x;
+    };
+
+    const rollRandom = () => {
+      const n = syncX(input.value);
+      render(root, n, rollCounts(n, Math.random));
+    };
+
+    const rollExample = () => {
+      const n = syncX(10000);
+      render(root, n, rollCounts(n, mulberry32(ARTICLE_SEED)));
+    };
+
+    range.addEventListener('input', () => syncX(range.value));
+    input.addEventListener('change', () => syncX(input.value));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') rollRandom();
+    });
+    rollBtn.addEventListener('click', rollRandom);
+    exampleBtn.addEventListener('click', rollExample);
+
+    rollRandom();
+  }
+
+  function init() {
+    const root = document.getElementById('dice-simulator');
+    if (root) bind(root);
+  }
+
+  init();
+  document.addEventListener('astro:after-swap', init);
+</script>

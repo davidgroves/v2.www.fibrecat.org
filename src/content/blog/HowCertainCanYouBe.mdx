@@ -1,0 +1,399 @@
+---
+title: How certain can you be?
+description: Two fair dice, a browser simulator, and a score for whether a pile of counts really came from rolling them.
+pubDate: 19 September 2026
+heroImage: ../../assets/blog/mathematical_proof.jpeg
+heroCredit: Parrish Freeman @ Unsplash
+heroLink: https://unsplash.com/photos/T0Cst1M37nc
+heroAltText: Mathematics written on a whiteboard.
+draft: false
+---
+
+import Latex from '../../components/Latex.astro';
+import DiceSimulator from '../../components/DiceSimulator.astro';
+
+## Certainty is a sliding scale
+
+A few years ago I wrote about [what a mathematician means by proof](/blog/mathematical_proof).
+The short version is that mathematicians are greedy.
+They want something as close to 100% certainty as language and axioms will allow.
+
+Everyone else lives further down the scale.
+
+- A civil court in England will take **the balance of probability**. More likely than not.
+- A criminal court wants **proof beyond reasonable doubt**. People sometimes pretend that is 99%.
+- Particle physics will not announce a discovery until it passes a [5-sigma](https://cds.cern.ch/record/44944?ln=en) test, about 1 in 3.5 million.
+
+Those are all answers to the same question: *given this evidence, how willing are you to treat a claim as true?*
+
+Dice are a good laboratory for that question.
+I even used a loaded die as an example in that earlier article.
+Here I want to do it properly: write down the probabilities, roll a lot of them in your browser, and then produce a **score** for the claim
+
+> “This distribution is the result of rolling two fair 6-sided dice, taking the sum, and counting how often each sum appears.”
+
+You will not get a proof.
+You will get something much more useful for the real world: a number that says how embarrassed the data should be, if that claim were true.
+
+That is a test **against** the claim, not a test **for** it.
+Those are different jobs, and most of the false certainty around statistics comes from mixing them up.
+
+## What two fair dice actually give you
+
+A fair six-sided die has faces `{1, 2, 3, 4, 5, 6}`, each with probability `1/6`.
+Roll two of them, and assume the rolls are independent.
+The sample space is a 6 by 6 grid.
+Every cell is equally likely, so each pair has probability
+
+<Latex formula='P(D_1 = a, D_2 = b) = \frac{1}{6} \times \frac{1}{6} = \frac{1}{36}' />
+
+The thing we actually plot is the **sum** $S = D_1 + D_2$.
+Sums of 2 and 12 each occupy one cell.
+A sum of 7 occupies six of them.
+
+<figure class="not-prose my-8 mx-auto max-w-md">
+  <div class="overflow-x-auto">
+    <table class="table table-sm text-center mx-auto w-auto">
+      <thead>
+        <tr>
+          <th class="bg-base-200"></th>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><th>1</th><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td></tr>
+        <tr><th>2</th><td>3</td><td>4</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td></tr>
+        <tr><th>3</th><td>4</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td></tr>
+        <tr><th>4</th><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>10</td></tr>
+        <tr><th>5</th><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>10</td><td>11</td></tr>
+        <tr><th>6</th><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    Every cell is one equally likely outcome. The highlighted cells are the six ways to roll a 7.
+  </figcaption>
+</figure>
+
+So the probabilities are not a flat line.
+They make a triangle.
+
+| Sum | Ways | Probability |
+|:---:|:----:|:-----------:|
+| 2 | 1 | 1/36 ≈ 2.78% |
+| 3 | 2 | 2/36 ≈ 5.56% |
+| 4 | 3 | 3/36 ≈ 8.33% |
+| 5 | 4 | 4/36 ≈ 11.11% |
+| 6 | 5 | 5/36 ≈ 13.89% |
+| 7 | 6 | 6/36 = 16.67% |
+| 8 | 5 | 5/36 ≈ 13.89% |
+| 9 | 4 | 4/36 ≈ 11.11% |
+| 10 | 3 | 3/36 ≈ 8.33% |
+| 11 | 2 | 2/36 ≈ 5.56% |
+| 12 | 1 | 1/36 ≈ 2.78% |
+
+That table *is* the answer to “what probability do two fair d6 give you?”
+It is exact.
+No simulation required.
+
+Two other exact facts fall out of it.
+
+The **expected value** of the sum is 7:
+
+<Latex formula='E[S] = \sum_{s=2}^{12} s \cdot P(S = s) = 7' />
+
+You can get the same number faster: one fair die has mean `3.5`, and expectation adds, so `3.5 + 3.5 = 7`.
+
+If you roll the pair `n` times, the **expected count** for each sum is
+
+<Latex formula='E[N_s] = n \cdot \frac{\text{ways}(s)}{36}' />
+
+After 10,000 rolls you should see about `10,000 × 6 / 36 ≈ 1,667` sevens, and only about `278` twos.
+“Should” is doing a lot of work in that sentence.
+You will almost never hit those counts exactly.
+The whole point of the rest of this article is to decide whether the gap you *do* see is the ordinary jitter of chance, or a reason to stop believing the dice.
+
+## A simulator
+
+The [law of large numbers](https://en.wikipedia.org/wiki/Law_of_large_numbers) says that as `X` grows, the observed fractions should sit closer and closer to the triangle above.
+It does not say they sit on it.
+
+Set `X` to something small, like 30, and roll.
+Then try a few hundred.
+Then try 10,000.
+The blue bars are what actually happened.
+The outline bars are the expected counts.
+
+<DiceSimulator />
+
+The sample mean is chasing 7 for the same reason.
+With 30 rolls it can wander off to 6.4 or 7.8 without anyone cheating.
+With 10,000 rolls it is usually sitting on 7.00-something.
+
+That is already a kind of certainty: not “I know the next roll”, but “I know the *shape* I will see if I am patient”.
+
+## An example with X = 10,000
+
+The button labelled **10,000-roll example** in the simulator is not a fresh random draw.
+It replays one specific stream of 10,000 rolls, generated from a seeded RNG, so the numbers in this section stay still while we do arithmetic on them.
+
+The counts were:
+
+| Sum | Expected | Observed | (O − E)² / E |
+|:---:|:--------:|:--------:|:------------:|
+| 2 | 277.78 | 265 | 0.588 |
+| 3 | 555.56 | 523 | 1.908 |
+| 4 | 833.33 | 857 | 0.672 |
+| 5 | 1,111.11 | 1,131 | 0.356 |
+| 6 | 1,388.89 | 1,364 | 0.446 |
+| 7 | 1,666.67 | 1,636 | 0.564 |
+| 8 | 1,388.89 | 1,377 | 0.102 |
+| 9 | 1,111.11 | 1,195 | 6.334 |
+| 10 | 833.33 | 845 | 0.163 |
+| 11 | 555.56 | 524 | 1.792 |
+| 12 | 277.78 | 283 | 0.098 |
+
+The sample mean came out at **7.020**, against an expected value of 7.
+If you only looked at the average, you would shrug and go home.
+
+The nines, though, look greedy: 1,195 against an expected 1,111.
+That is about 8% too many.
+Is that a loaded die, or is that just what 10,000 random rolls look like?
+
+Eyeballing a bar chart will not settle it.
+People are good at seeing triangles and bad at judging how much wobble a triangle is allowed.
+We need a score.
+
+## Scoring the assertion
+
+The assertion, written carefully, is this:
+
+> These 11 counts were produced by `n` independent rolls of two fair six-sided dice, summing each pair, and tallying the sums.
+
+Call that claim `H`.
+`H` is not a theorem about the integers.
+It is a claim about a particular pile of numbers.
+The mathematical object it predicts is a [multinomial distribution](https://en.wikipedia.org/wiki/Multinomial_distribution):
+
+<Latex formula='(N_2, N_3, \ldots, N_{12}) \sim \operatorname{Multinomial}\left(n,\ \left(\tfrac{1}{36},\tfrac{2}{36},\ldots,\tfrac{1}{36}\right)\right)' />
+
+We now want a single number that is small when the counts look like that prediction, and large when they do not.
+
+### Pearson's chi-squared
+
+[Pearson's chi-squared statistic](https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test) is the standard score for this job.
+
+<Latex formula='\chi^2 = \sum_{s=2}^{12} \frac{(O_s - E_s)^2}{E_s}' />
+
+Each term asks: how far is this bucket from what `H` expected, in units of the uncertainty that bucket should have?
+You then add them up so that one slightly off bucket cannot hide eleven terrible ones, and so that one terrible bucket is not allowed to hide behind ten perfect ones.
+
+For the nines in the example:
+
+<Latex formula='\frac{(1195 - 1111.11)^2}{1111.11} \approx 6.33' />
+
+For the twos:
+
+<Latex formula='\frac{(265 - 277.78)^2}{277.78} \approx 0.59' />
+
+Add all eleven terms and you get
+
+<Latex formula='\chi^2 \approx 13.02' />
+
+That is the mismatch score.
+Zero would mean the observed counts sat exactly on the expected counts.
+Bigger means a worse match.
+
+A raw 13.02 is still not a verdict.
+You need to know what values χ² *usually* takes when `H` is true.
+
+### Turning the score into a probability
+
+There are 11 buckets, but they have to add up to `n`, so you only have 10 independent pieces of information.
+The usual approximation, which is already very good at `n = 10,000`, is
+
+<Latex formula='\chi^2 \;\approx\; \chi^2_{10}' />
+
+that is, a [chi-squared distribution](https://en.wikipedia.org/wiki/Chi-squared_distribution) with 10 degrees of freedom.
+
+If `H` is true, the mean of that distribution is 10.
+Our 13.02 is a little above average, not a disaster.
+The usual way to say “how unusual” is the **p-value**:
+
+<Latex formula='p = P\left(\chi^2_{10} \ge 13.02 \;\middle|\; H \text{ is true}\right) \approx 0.222' />
+
+For even degrees of freedom this probability has a short closed form.
+With 10 degrees of freedom, `m = 5` and `λ = χ² / 2`:
+
+<Latex formula='p = e^{-\lambda} \sum_{k=0}^{4} \frac{\lambda^k}{k!}' />
+
+Plug in `λ = 13.02 / 2 = 6.51` and you get `p ≈ 0.222`.
+
+If you prefer a table to a formula, here are the usual cut-offs for 10 degrees of freedom:
+
+| How picky | Critical χ² | Meaning |
+|:---|:---:|:---|
+| 10% test | 15.99 | reject `H` if χ² is bigger than this |
+| 5% test | 18.31 | the common “statistically significant” line |
+| 1% test | 23.21 | |
+| 0.1% test | 29.59 | getting towards “I would be genuinely surprised” |
+
+13.02 sits below all of them.
+
+### What the score is, and what it is not
+
+`p ≈ 0.22` does **not** mean “there is a 22% chance the assertion is true”.
+
+That is the sentence everyone wants, and it is the sentence this method refuses to say.
+A p-value is
+
+> If the assertion **were** true, how often would random fair dice look this mismatched, or worse?
+
+About 22% of the time.
+So this particular run is boring.
+Fair dice produce a picture like this on a perfectly ordinary Wednesday.
+
+The nines looking high is part of that boredom.
+One bucket out of eleven wandered.
+The score saw it (`6.33` of the `13.02` came from that one cell) and still said: this is allowed.
+
+What you *can* say, honestly, is:
+
+1. **χ²** is a mismatch score. Closer to 0 is a closer match to two fair dice.
+2. **p** converts that score into a tail probability under the assertion.
+3. A conventional rule is: if `p < 0.05`, start doubting the assertion. If `p < 0.001`, start doubting it loudly.
+4. If `p` is comfortable, you have **failed to reject** the assertion. You have not proved it.
+
+That last point is the whole “being certain” lesson, and it is worth slowing down for.
+
+### Testing for, versus testing against
+
+There are two jobs you can give a test.
+People use the same word for both, which is how you end up thinking a surviving claim has been shown to be true.
+
+**Testing for** a claim means looking for signs that match it.
+The bars make a triangle.
+The mean is near 7.
+Sevens are the most common sum.
+That *looks like* two dice, so a test-for will nod and move on.
+
+The problem is that the triangle is not a fingerprint.
+Other machines produce the same picture, including machines that are not “two fair 6-sided dice” in any useful sense.
+
+Here is a boring one.
+Fill a bag with 36 chips:
+
+- 1 chip labelled 2
+- 2 labelled 3
+- 3 labelled 4
+- 4 labelled 5
+- 5 labelled 6
+- 6 labelled 7
+- 5 labelled 8
+- 4 labelled 9
+- 3 labelled 10
+- 2 labelled 11
+- 1 labelled 12
+
+Draw one chip, write the number down, put it back, repeat.
+You are not rolling dice.
+You are sampling from a bag.
+The histogram of those numbers is *the same* as the two-dice triangle, because you built the bag from the 36 cells of the grid.
+A test *for* “looks like two d6” will pass this forever.
+χ² against `H` will too: the counts really do come from those probabilities.
+The assertion “someone rolled two fair six-sided dice” is still false.
+
+A less boring one is [Sicherman dice](https://en.wikipedia.org/wiki/Sicherman_dice).
+These are a real pair of dice.
+They are fair cubes.
+They are not numbered 1 through 6.
+
+One die has faces `{1, 2, 2, 3, 3, 4}`.
+The other has `{1, 3, 4, 5, 6, 8}`.
+
+<figure class="not-prose my-8 mx-auto max-w-md">
+  <div class="overflow-x-auto">
+    <table class="table table-sm text-center mx-auto w-auto">
+      <thead>
+        <tr>
+          <th class="bg-base-200"></th>
+          <th>1</th><th>3</th><th>4</th><th>5</th><th>6</th><th>8</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><th>1</th><td>2</td><td>4</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>9</td></tr>
+        <tr><th>2</th><td>3</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>10</td></tr>
+        <tr><th>2</th><td>3</td><td>5</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>10</td></tr>
+        <tr><th>3</th><td>4</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>11</td></tr>
+        <tr><th>3</th><td>4</td><td>6</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>11</td></tr>
+        <tr><th>4</th><td>5</td><td class="bg-primary/20 font-semibold">7</td><td>8</td><td>9</td><td>10</td><td>12</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    Sicherman dice. Still 36 equally likely cells. Still one 2, six 7s, one 12. Different objects.
+  </figcaption>
+</figure>
+
+Count the sums: one 2, two 3s, three 4s, four 5s, five 6s, six 7s, and back down again.
+That is the same 1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1 pattern as ordinary dice.
+The 7s are no longer on a neat diagonal, but there are still six of them.
+If all you are allowed to see is the sum, no amount of rolling will tell these cubes from a standard pair.
+The simulator's χ² test against `H` is a test against *that sum distribution*, not against “the faces were 1 through 6”.
+Sicherman dice will sit there looking innocent at `X = 10,000`, and at `X = 10,000,000`.
+
+Three four-sided dice are a weaker version of the same lesson.
+They also pile up around 7 or 8, so a test *for* a triangle will often nod.
+They are *not* the same distribution (you cannot roll a 2, and the probabilities of 7 and 8 are different), so a test *against* the exact 2d6 weights will eventually throw them out if `X` is large enough.
+The bag, and Sicherman dice, never will.
+Confirmation is cheap, because the pattern you are hunting for is not unique.
+
+**Testing against** a claim means taking the claim as a precise target and trying to knock it down.
+χ² is this kind of test.
+It does not ask “do you like this triangle?”
+It asks “if `H` were true, is this mismatch embarrassing?”
+The only decisive answer it can give is *yes, throw `H` out*.
+The other answer is *not embarrassing enough*, which is not a yes.
+
+That is why statisticians talk about **rejecting** a hypothesis, and almost never about **accepting** one.
+Surviving a test against you is not the same as passing a test for you.
+The claim had a chance to die, and it did not.
+Plenty of false claims survive a round of that, especially if you have not been very rude to them yet.
+
+Software tests split the same way.
+`assert add(2, 2) == 4` tests *for* one expected result.
+It will never tell you the function is correct; it will only tell you that this one case did what you hoped.
+Trying to break `add` with cases you expect might fail is testing *against* the claim “this works”.
+I have written about that attitude before, in [Software Testing for Non Engineers](/blog/software_testing_for_non_engineers).
+
+“Goodness of fit” is a terrible name for χ², for exactly this reason.
+It sounds like a test *for* a good fit.
+The procedure is “is the fit *bad enough* to throw the model out?”
+It is a prosecution, not a character reference.
+
+A slightly loaded pair of dice, or a pair of dice that are fair but not independent, can still sneak through 10,000 rolls with a respectable p-value.
+They would pass a test-for (“looks triangular, mean is about 7”) even more easily.
+And a perfectly fair pair can, rarely, produce `p < 0.01` by chance, which is the other direction: a test-against can also punch an innocent claim.
+If you want 5-sigma certainty that a die is *not* fair, you need a much larger `X`, or a much ruder deviation.
+
+One more trap, because people who fake data fall into it.
+If someone *invents* counts that sit almost exactly on `277, 556, 833, …`, χ² collapses towards 0 and the p-value sails towards 1.
+That looks like the strongest possible test-*for*: a perfect match.
+Real randomness almost never hugs the expected counts that tightly at `n = 10,000`.
+A p-value of `0.999` is not a gold star.
+It is a different kind of test *against* the data: these numbers look too polite to have been rolled.
+
+## So how certain can you be?
+
+With this example: moderately, and only in one direction.
+
+- The exact probabilities of two fair dice are not in doubt. That part is combinatorics, and combinatorics can be certain.
+- We tested **against** the claim that these 10,000 counts came from that distribution. The claim survived. χ² = 13.02, p ≈ 0.22.
+- That is not a test **for** the claim. We did not show that the counts came from two fair dice. We showed that this particular punch did not land.
+- It is also the *wrong comparison* to read 0.22 as a grade. We are not 22% sure. We are looking at evidence that would not surprise us 22% of the time if we already believed `H`.
+
+If you came here hoping simulation would replace proof, it will not.
+If you came here hoping to know when a messy bar chart is still “the two-dice distribution”, χ² is the score I would actually compute: a test against the model, not a medal for it.
+
+Set `X` to 1 and you can be certain of almost nothing.
+Set `X` to 10,000 and you can be certain of the shape, while remaining honest that the next roll is still a roll.
