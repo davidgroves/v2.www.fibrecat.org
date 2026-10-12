@@ -1,0 +1,90 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { dnsRrs } from '../../../data/dns-rrs';
+
+const current = dnsRrs.filter((r) => !r.warning);
+const warned = dnsRrs.filter((r) => r.warning);
+---
+
+<BaseLayout
+  title="DNS Resource Records"
+  description="DNS resource record types: fields, types, and presentation form."
+>
+  <div class="container mx-auto px-4 py-12 max-w-5xl">
+    <header class="mb-10">
+      <h1 class="text-4xl lg:text-5xl font-bold mb-4">DNS Resource Records</h1>
+      <p class="text-lg text-base-content/70 max-w-2xl">
+        Field breakdowns for IANA-assigned DNS RR types. {dnsRrs.length} types.
+      </p>
+    </header>
+
+    <div class="overflow-x-auto mb-12">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Code</th>
+            <th>Summary</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {current.map((rr) => (
+            <tr class="hover">
+              <td>
+                <a href={`/dns/rr/${rr.slug}`} class="font-mono font-semibold link link-hover">
+                  {rr.type}
+                </a>
+              </td>
+              <td class="font-mono text-base-content/50">{rr.typeCode}</td>
+              <td class="text-base-content/70">{rr.tagline}</td>
+              <td class="text-right">
+                <a href={`/dns/rr/${rr.slug}`} class="btn btn-ghost btn-xs">View</a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {warned.length > 0 && (
+      <section>
+        <h2 class="text-2xl font-bold mb-4">Obsolete, deprecated, experimental, and meta</h2>
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Code</th>
+                <th>Status</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {warned.map((rr) => (
+                <tr class="hover">
+                  <td>
+                    <a href={`/dns/rr/${rr.slug}`} class="font-mono font-semibold link link-hover">
+                      {rr.type}
+                    </a>
+                  </td>
+                  <td class="font-mono text-base-content/50">{rr.typeCode}</td>
+                  <td>
+                    <span class={`badge badge-sm ${
+                      rr.warning!.level === 'meta' ? 'badge-info' :
+                      rr.warning!.level === 'experimental' ? 'badge-warning' :
+                      'badge-error'
+                    }`}>
+                      {rr.warning!.level.toUpperCase()}
+                    </span>
+                  </td>
+                  <td class="text-base-content/70 text-sm">{rr.warning!.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )}
+  </div>
+</BaseLayout>

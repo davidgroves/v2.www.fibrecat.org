@@ -1,0 +1,208 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { dnsRrs, getDnsRr, type DnsRrField } from '../../../data/dns-rrs';
+
+export function getStaticPaths() {
+  return dnsRrs.map((rr) => ({
+    params: { type: rr.slug },
+  }));
+}
+
+const { type } = Astro.params;
+const rr = getDnsRr(type ?? '');
+
+if (!rr) {
+  return Astro.redirect('/dns/rr');
+}
+
+const idx = dnsRrs.findIndex((r) => r.slug === rr.slug);
+const prev = idx > 0 ? dnsRrs[idx - 1] : undefined;
+const next = idx < dnsRrs.length - 1 ? dnsRrs[idx + 1] : undefined;
+
+function nestedSections(fields: DnsRrField[]): { parent: DnsRrField; children: DnsRrField[] }[] {
+  return fields
+    .filter((f) => f.children && f.children.length > 0)
+    .map((f) => ({ parent: f, children: f.children! }));
+}
+
+const nests = nestedSections(rr.fields);
+
+const warningAlertClass =
+  rr.warning?.level === 'meta'
+    ? 'alert-info'
+    : rr.warning?.level === 'experimental'
+      ? 'alert-warning'
+      : 'alert-error';
+
+const warningLabel = rr.warning?.level.toUpperCase() ?? '';
+---
+
+<BaseLayout
+  title={`${rr.type} DNS Record`}
+  description={rr.synopsis}
+  image={rr.image}
+>
+  <div class="container mx-auto px-4 py-10 max-w-3xl">
+    <nav class="text-sm breadcrumbs mb-6">
+      <ul>
+        <li><a href="/dns/rr">DNS RRs</a></li>
+        <li>{rr.type}</li>
+      </ul>
+    </nav>
+
+    {rr.warning && (
+      <div class={`alert ${warningAlertClass} mb-8`} role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
+        <div>
+          <span class="font-bold tracking-wide">{warningLabel}</span>
+          <span class="mx-2">—</span>
+          <span>{rr.warning.message}</span>
+        </div>
+      </div>
+    )}
+
+    <header class="mb-8 text-center">
+      <p class="text-sm uppercase tracking-widest text-base-content/50 mb-2">
+        TYPE {rr.typeCode}
+      </p>
+      <h1 class="text-4xl lg:text-5xl font-bold mb-3">{rr.title}</h1>
+      <p class="text-lg text-base-content/70">{rr.tagline}</p>
+    </header>
+
+    <figure class="mb-10">
+      <img
+        src={rr.image}
+        alt={rr.imageAlt}
+        class="w-full max-w-xl mx-auto rounded-lg shadow-xl"
+        width="1024"
+        height="1024"
+      />
+    </figure>
+
+    <section class="mb-10">
+      <h2 class="text-2xl font-bold mb-3">Synopsis</h2>
+      <p class="text-base-content/80 leading-relaxed">{rr.synopsis}</p>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-2xl font-bold mb-4">RDATA</h2>
+      {rr.fields.length === 0 ? (
+        <p class="text-base-content/70">No RDATA fields (meta / query type).</p>
+      ) : (
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Type</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rr.fields.map((field) => (
+                <tr>
+                  <td class="font-mono font-semibold whitespace-nowrap align-top">
+                    {field.name}
+                  </td>
+                  <td class="font-mono text-sm text-base-content/70 whitespace-nowrap align-top">
+                    {field.type}
+                  </td>
+                  <td class="align-top">
+                    <p>{field.description}</p>
+                    {field.example && (
+                      <p class="mt-1 font-mono text-sm text-primary">
+                        e.g. {field.example}
+                      </p>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {nests.map(({ parent, children }) => (
+        <div class="mt-6 ml-4 sm:ml-8 pl-4 border-l-2 border-base-300">
+          <h3 class="text-lg font-bold mb-1 font-mono">{parent.name}</h3>
+          <p class="text-sm text-base-content/70 mb-3">{parent.description}</p>
+          <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                {children.map((field) => (
+                  <tr>
+                    <td class="font-mono font-semibold whitespace-nowrap align-top">
+                      {field.name}
+                    </td>
+                    <td class="font-mono text-sm text-base-content/70 whitespace-nowrap align-top">
+                      {field.type}
+                    </td>
+                    <td class="align-top">
+                      <p>{field.description}</p>
+                      {field.example && (
+                        <p class="mt-1 font-mono text-sm text-primary">
+                          e.g. {field.example}
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-2xl font-bold mb-3">Examples</h2>
+      <div class="space-y-3">
+        {rr.examples.map((example) => (
+          <pre class="bg-base-200 rounded-lg p-4 overflow-x-auto text-sm"><code>{example}</code></pre>
+        ))}
+      </div>
+    </section>
+
+    {rr.rfcs.length > 0 && (
+      <section class="mb-12">
+        <h2 class="text-2xl font-bold mb-3">References</h2>
+        <ul class="list-disc list-inside space-y-1">
+          {rr.rfcs.map((rfc) => (
+            <li>
+              <a href={rfc.url} class="link link-primary" target="_blank" rel="noopener noreferrer">
+                {rfc.id}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <nav class="border-t border-base-300 pt-8 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        {prev ? (
+          <a href={`/dns/rr/${prev.slug}`} class="btn btn-outline btn-sm">← {prev.type}</a>
+        ) : (
+          <span />
+        )}
+      </div>
+      <a href="/dns/rr" class="btn btn-ghost btn-sm">All records</a>
+      <div>
+        {next ? (
+          <a href={`/dns/rr/${next.slug}`} class="btn btn-outline btn-sm">{next.type} →</a>
+        ) : (
+          <span />
+        )}
+      </div>
+    </nav>
+  </div>
+</BaseLayout>
