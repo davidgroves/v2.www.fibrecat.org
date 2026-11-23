@@ -64,8 +64,8 @@ src/
 
 ## Deployment
 
-Hosting is **Railway**, with deploys from the Railway GitHub integration on every push to `main`.
-GitHub Actions still runs a production build check on those pushes.
+Hosting is **Railway**, deployed by GitHub Actions on every push to `main`
+(uses a Railway **project token** in the `RAILWAY_TOKEN` repository secret).
 
 | URL | Notes |
 |---|---|
@@ -77,6 +77,14 @@ GitHub Actions still runs a production build check on those pushes.
 
 ```bash
 git push origin main
+# or: GitHub → Actions → "Deploy to Railway" → Run workflow
+```
+
+Create the project token in Railway → Project Settings → Tokens (environment: `production`),
+then:
+
+```bash
+gh secret set RAILWAY_TOKEN
 ```
 
 The workflow builds with Bun (`SKIP_FETCH_ALBUMS=1`), then deploys via the Railway CLI (`railway up`).

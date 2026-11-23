@@ -1,7 +1,5 @@
 name: Deploy to Railway
 
-# Build verification on push. Railway deploys from the GitHub integration
-# connected to this repo (Settings → service → Source).
 on:
   push:
     branches: [main]
@@ -28,3 +26,36 @@ jobs:
         run: bun run build
         env:
           SKIP_FETCH_ALBUMS: "1"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    container: ghcr.io/railwayapp/cli:latest
+    env:
+      # Project token (Project Settings → Tokens). Prefer this over account API tokens.
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Railway config
+        shell: sh
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "Missing secret RAILWAY_TOKEN (create a Project Token in Railway → Project Settings → Tokens)" >&2
+            exit 1
+          fi
+          if [ -z "$RAILWAY_PROJECT_ID" ] || [ -z "$RAILWAY_SERVICE_ID" ]; then
+            echo "Missing GitHub Actions variables: RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID" >&2
+            exit 1
+          fi
+
+      - name: Deploy
+        shell: sh
+        run: |
+          railway up --detach --ci \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "${RAILWAY_ENVIRONMENT:-production}" \
+            --service "$RAILWAY_SERVICE_ID"

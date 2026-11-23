@@ -19,7 +19,8 @@
       "username": "bun",
       "userUid": "1000",
       "userGid": "1000"
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "remoteUser": "bun",
   "runArgs": [
@@ -31,7 +32,10 @@
   "containerEnv": {
     "DISPLAY": "${localEnv:DISPLAY}"
   },
-  "postCreateCommand": "bun install && bunx playwright install --with-deps chromium",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "remoteEnv": {
+    "PATH": "/home/bun/.railway/bin:${containerEnv:PATH}"
+  },
   "customizations": {
     "vscode": {
       "extensions": [

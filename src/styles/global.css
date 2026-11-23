@@ -2,25 +2,67 @@
 @plugin "daisyui";
 @plugin "@tailwindcss/typography";
 
-/* KaTeX styles for math rendering */
-@import "katex/dist/katex.min.css";
-
-/* Fallback font with similar metrics to Open Sans (reduces layout shift on swap) */
+/*
+  Metric-matched Arial fallbacks so font-display: swap does not shift layout.
+  Values tuned for Open Sans vs Arial (size-adjust / ascent / descent / line-gap).
+*/
 @font-face {
   font-family: 'OpenSans Fallback';
   src: local('Arial');
-  size-adjust: 107%;
-  ascent-override: 90%;
-  descent-override: 22%;
+  font-weight: 100 900;
+  font-style: normal;
+  size-adjust: 106.37%;
+  ascent-override: 104.7%;
+  descent-override: 29.5%;
+  line-gap-override: 0%;
 }
 
-/* Custom font */
+@font-face {
+  font-family: 'OpenSans Fallback';
+  src: local('Arial Italic'), local('Arial');
+  font-weight: 100 900;
+  font-style: italic;
+  size-adjust: 106.37%;
+  ascent-override: 104.7%;
+  descent-override: 29.5%;
+  line-gap-override: 0%;
+}
+
+/* Open Sans — latin (+ latin-ext). Preload regular + bold in BaseLayout. */
 @font-face {
   font-family: 'OpenSans';
   src: url('/fonts/OpenSans-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-Regular-LatinExt.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'OpenSans';
+  src: url('/fonts/OpenSans-Bold-LatinExt.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 @font-face {
@@ -28,7 +70,8 @@
   src: url('/fonts/OpenSans-Light.woff2') format('woff2');
   font-weight: 300;
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
@@ -36,7 +79,8 @@
   src: url('/fonts/OpenSans-LightItalic.woff2') format('woff2');
   font-weight: 300;
   font-style: italic;
-  font-display: swap;
+  font-display: optional;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 /* DaisyUI theme configuration */
@@ -47,6 +91,11 @@
 /* Base styles */
 html {
   scroll-behavior: smooth;
+}
+
+body {
+  /* Prefer real faces over synthetic bold/italic once webfonts load */
+  font-synthesis: none;
 }
 
 /* Prose customizations for blog posts */
