@@ -64,7 +64,8 @@ src/
 
 ## Deployment
 
-Hosting is **Railway** with continuous deploy from GitHub Actions on every push to `main`.
+Hosting is **Railway**, with deploys from the Railway GitHub integration on every push to `main`.
+GitHub Actions still runs a production build check on those pushes.
 
 | URL | Notes |
 |---|---|
@@ -76,7 +77,6 @@ Hosting is **Railway** with continuous deploy from GitHub Actions on every push 
 
 ```bash
 git push origin main
-# or: GitHub → Actions → "Deploy to Railway" → Run workflow
 ```
 
 The workflow builds with Bun (`SKIP_FETCH_ALBUMS=1`), then deploys via the Railway CLI (`railway up`).
