@@ -1,0 +1,348 @@
+---
+title: SSH Private Keys in Hardware
+description: Passphrases help. Hardware-backed keys help more. What changes when usable private key material is bound to a TPM, Secure Enclave, or YubiKey.
+pubDate: 23 November 2026
+heroImage: ../../assets/blog/KeyAndDoor.jpeg
+heroCredit: Edmund Lou @ unsplash.com
+heroLink: https://unsplash.com/photos/brass-door-handle-on-blue-wooden-door-SKi0kbloPxw
+heroAltText: A key in the lock of a wooden door.
+draft: false
+---
+
+## A very brief introduction to SSH key authentication
+
+Password logins send a secret to the server and hope nobody else has it.
+[SSH](https://www.openssh.com/) key authentication works differently.
+
+You generate a key pair: a **private key** you keep, and a **public key** you can give away.
+You put the public key in [`~/.ssh/authorized_keys`](https://man.openbsd.org/sshd#AUTHORIZED_KEYS_FILE_FORMAT) on the server.
+When you connect, the server challenges you to prove you hold the matching private key.
+You never send the private key over the wire.
+You send a signature that only the private key could have produced, and the public key can verify.
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 520 220" class="w-full h-auto" role="img" aria-label="SSH public key authentication: client holds private key, server holds public key, challenge and signature flow">
+    <rect x="20" y="40" width="180" height="140" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="110" y="30" text-anchor="middle" font-size="14" fill="currentColor" font-weight="600">Your laptop</text>
+    <text x="110" y="75" text-anchor="middle" font-size="13" fill="currentColor">Private key</text>
+    <rect x="55" y="90" width="110" height="36" rx="4" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5" />
+    <text x="110" y="113" text-anchor="middle" font-size="12" fill="currentColor">id_ed25519</text>
+    <text x="110" y="155" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.7">stays secret</text>
+
+    <rect x="320" y="40" width="180" height="140" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="410" y="30" text-anchor="middle" font-size="14" fill="currentColor" font-weight="600">Remote server</text>
+    <text x="410" y="75" text-anchor="middle" font-size="13" fill="currentColor">Public key</text>
+    <rect x="355" y="90" width="110" height="36" rx="4" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5" />
+    <text x="410" y="113" text-anchor="middle" font-size="12" fill="currentColor">authorized_keys</text>
+    <text x="410" y="155" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.7">safe to share</text>
+
+    <line x1="210" y1="80" x2="310" y2="80" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow-hw)" />
+    <text x="260" y="70" text-anchor="middle" font-size="11" fill="currentColor">challenge</text>
+    <line x1="310" y1="130" x2="210" y2="130" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow-hw)" />
+    <text x="260" y="150" text-anchor="middle" font-size="11" fill="currentColor">signature</text>
+
+    <defs>
+      <marker id="arrow-hw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    The private key never leaves your side. Only a signature goes to the server.
+  </figcaption>
+</figure>
+
+That is the whole idea.
+If you want the mathematics behind public-key cryptography, [Wikipedia's overview](https://en.wikipedia.org/wiki/Public-key_cryptography) and the [OpenSSH manual pages](https://man.openbsd.org/ssh-keygen) are good starting points.
+This post is about where that private key lives, and what happens when you stop treating it as a file you can copy.
+
+## How passphrases help
+
+A normal SSH private key is a file on disk.
+Permissions (`0600`, owned by you) are the first line of defence.
+A passphrase is the second: the file is encrypted at rest, and [OpenSSH](https://www.openssh.com/) only decrypts it when you unlock it.
+
+That means someone who "just steals the file" — a backup dump, a stolen laptop disk, a careless `scp` of `~/.ssh` — does not automatically get a usable key.
+Without the passphrase, the blob is junk.
+
+<figure class="not-prose my-8 mx-auto max-w-md text-base-content">
+  <svg viewBox="0 0 400 200" class="w-full h-auto" role="img" aria-label="Passphrase encrypts the private key file at rest">
+    <rect x="30" y="50" width="140" height="100" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="100" y="40" text-anchor="middle" font-size="13" fill="currentColor" font-weight="600">On disk</text>
+    <text x="100" y="95" text-anchor="middle" font-size="12" fill="currentColor">encrypted</text>
+    <text x="100" y="115" text-anchor="middle" font-size="12" fill="currentColor">private key file</text>
+
+    <path d="M 190 100 L 230 100" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow-hw2)" />
+    <text x="210" y="88" text-anchor="middle" font-size="11" fill="currentColor">+ passphrase</text>
+
+    <rect x="250" y="50" width="120" height="100" rx="8" fill="currentColor" opacity="0.1" stroke="currentColor" stroke-width="2" />
+    <text x="310" y="40" text-anchor="middle" font-size="13" fill="currentColor" font-weight="600">In use</text>
+    <text x="310" y="95" text-anchor="middle" font-size="12" fill="currentColor">unlocked key</text>
+    <text x="310" y="115" text-anchor="middle" font-size="12" fill="currentColor">(agent / process)</text>
+
+    <defs>
+      <marker id="arrow-hw2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    A passphrase protects the key at rest. Once unlocked, that protection is gone.
+  </figcaption>
+</figure>
+
+But passphrases have a sharp limit.
+
+If an attacker can copy your `~/.ssh` directory, they often already have enough access to steal more than the file.
+Malware that can read your home directory can often also:
+
+- watch keystrokes while you type the passphrase
+- talk to your running [`ssh-agent`](https://man.openbsd.org/ssh-agent) and ask it to sign things
+- scrape the unlocked key from process memory
+
+So a passphrase is still worth having.
+It raises the bar for opportunistic theft of cold files.
+It is a weak defence against a live compromise of the machine that unlocks the key.
+
+That is the gap hardware-backed keys try to close.
+
+## How private key material can live in hardware
+
+The shared goal across these approaches is the same: usable private key material should not appear as a normal file you can copy off the machine.
+Apple calls its isolated key coprocessor the [Secure Enclave](https://support.apple.com/en-gb/guide/security/sec59b0b31ff/web).
+[TPMs](https://en.wikipedia.org/wiki/Trusted_Platform_Module) and hardware tokens solve a similar problem in different ways.
+
+Three common options for SSH:
+
+### TPM 2.0
+
+Most modern PCs already have a [TPM 2.0](https://en.wikipedia.org/wiki/Trusted_Platform_Module).
+Tools such as [`ssh-tpm-agent`](https://github.com/Foxboron/ssh-tpm-agent) let you create SSH keys bound to that chip.
+
+With the usual TPM-agent approach, a sealed blob (often a `.tpm` file) still lives on disk.
+That blob is useless on any other machine.
+The TPM is what can unwrap and use it.
+The credential is device-bound: steal the file without the TPM, and you have nothing usable.
+
+This is unrelated to [Secure Boot](https://en.wikipedia.org/wiki/UEFI#Secure_Boot).
+Secure Boot checks that the firmware and bootloaders are signed before they run.
+A TPM *can* record that boot path and seal secrets to it — that is how disk encryption schemes like BitLocker often work — but `ssh-tpm-agent` does not do that by default.
+Your SSH key is bound to the chip, not to a particular Secure Boot or measured-boot state.
+Turning Secure Boot on or off does not create or destroy the SSH credential, and you do not need Secure Boot for this setup.
+
+### Apple's Secure Enclave
+
+On Macs with a [Secure Enclave](https://support.apple.com/en-gb/guide/security/sec59b0b31ff/web) ([Apple Silicon](https://support.apple.com/en-gb/HT211814), and earlier [T2](https://support.apple.com/en-gb/guide/security/secf14b09800/web)-era machines), you can create keys that the enclave generates and never exports in plaintext.
+Apps like [Secretive](https://github.com/maxgoedjen/secretive), or newer macOS [CryptoTokenKit](https://developer.apple.com/documentation/cryptotokenkit) / [`sc_auth`](https://keith.github.io/xcode-man-pages/sc_auth.8.html) flows, expose those keys to OpenSSH as an agent or provider.
+Signing happens inside the enclave.
+Your Mac gets signatures out; it does not get a copy of the private key to email to yourself "just in case".
+
+### YubiKey (and similar tokens)
+
+A [YubiKey](https://developers.yubico.com/SSH/) (or other [FIDO2](https://fidoalliance.org/fido2/) / [PIV](https://developers.yubico.com/PIV/) token) holds key material in the token itself.
+OpenSSH's [`ed25519-sk` / `ecdsa-sk`](https://developers.yubico.com/SSH/Securing_SSH_with_FIDO2.html) key types are the straightforward path for many people: generate with [`ssh-keygen`](https://man.openbsd.org/ssh-keygen) `-t ed25519-sk`, touch the key when prompted, put the public half on the server.
+
+The private material is bound to the token, not to a particular laptop.
+You can move the YubiKey between machines.
+What you cannot do is extract a copyable private key file from it.
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 520 260" class="w-full h-auto" role="img" aria-label="Hardware-backed SSH: only signatures leave the chip, private key stays inside">
+    <rect x="40" y="30" width="200" height="200" rx="10" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="140" y="55" text-anchor="middle" font-size="14" fill="currentColor" font-weight="600">Hardware</text>
+    <text x="140" y="75" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.7">TPM / Secure Enclave / YubiKey</text>
+    <rect x="70" y="100" width="140" height="70" rx="6" fill="currentColor" opacity="0.12" stroke="currentColor" stroke-width="1.5" />
+    <text x="140" y="130" text-anchor="middle" font-size="13" fill="currentColor">Private key</text>
+    <text x="140" y="150" text-anchor="middle" font-size="12" fill="currentColor">material</text>
+    <text x="140" y="205" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">never exported</text>
+
+    <rect x="300" y="70" width="180" height="120" rx="10" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="390" y="100" text-anchor="middle" font-size="14" fill="currentColor" font-weight="600">Host OS / SSH</text>
+    <text x="390" y="130" text-anchor="middle" font-size="12" fill="currentColor">asks for a signature</text>
+    <text x="390" y="155" text-anchor="middle" font-size="12" fill="currentColor">receives only the result</text>
+
+    <path d="M 250 140 L 290 140" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow-hw3)" />
+    <text x="270" y="128" text-anchor="middle" font-size="11" fill="currentColor">sign</text>
+
+    <defs>
+      <marker id="arrow-hw3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+      </marker>
+    </defs>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    The OS can request signatures. It should never receive a copyable private key.
+  </figcaption>
+</figure>
+
+## What the consequences are
+
+You cannot meaningfully back up the private key.
+
+There is no encrypted USB copy to stash in a safe.
+There is no "restore from [Time Machine](https://support.apple.com/en-gb/HT201250) and keep the same key" for a true Secure Enclave identity.
+If the laptop dies, or the YubiKey is destroyed, that particular private key is gone.
+
+A "backup" in this world is organisational, not cryptographic:
+
+- generate a key on each device (or each token) you trust
+- authorise each public key on the servers that matter
+- revoke a public key when a device is lost
+
+<figure class="not-prose my-8 mx-auto max-w-lg text-base-content">
+  <svg viewBox="0 0 520 240" class="w-full h-auto" role="img" aria-label="Backup model: multiple devices each with their own key, all listed in authorized_keys">
+    <rect x="20" y="40" width="120" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="80" y="70" text-anchor="middle" font-size="12" fill="currentColor">Laptop</text>
+    <text x="80" y="95" text-anchor="middle" font-size="11" fill="currentColor">key A</text>
+
+    <rect x="160" y="40" width="120" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="220" y="70" text-anchor="middle" font-size="12" fill="currentColor">Desktop</text>
+    <text x="220" y="95" text-anchor="middle" font-size="11" fill="currentColor">key B</text>
+
+    <rect x="300" y="40" width="120" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="360" y="70" text-anchor="middle" font-size="12" fill="currentColor">YubiKey</text>
+    <text x="360" y="95" text-anchor="middle" font-size="11" fill="currentColor">key C</text>
+
+    <path d="M 80 120 L 80 150 L 260 150 L 260 170" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <path d="M 220 120 L 220 150" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <path d="M 360 120 L 360 150 L 260 150" fill="none" stroke="currentColor" stroke-width="1.5" />
+
+    <rect x="160" y="170" width="200" height="50" rx="8" fill="currentColor" opacity="0.1" stroke="currentColor" stroke-width="2" />
+    <text x="260" y="200" text-anchor="middle" font-size="12" fill="currentColor">authorized_keys: A, B, C</text>
+  </svg>
+  <figcaption class="text-center text-sm text-base-content/60 mt-2">
+    Resilience comes from multiple authorised keys, not from cloning one private key.
+  </figcaption>
+</figure>
+
+Lose a device?
+Remove its public key from `authorized_keys` (and from [GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account), [GitLab](https://docs.gitlab.com/user/ssh/), cloud consoles, and anywhere else you pasted it).
+The other devices keep working.
+
+## What the benefits are
+
+By design, usable private key material stays inside the hardware that protects it.
+A Secure Enclave key never leaves the chip as plaintext.
+A YubiKey key stays on the token.
+A TPM-sealed `.tpm` blob may sit on disk, but without that TPM it is worthless.
+
+An attacker who steals a disk image does not get a portable `id_ed25519` they can use from a café laptop.
+Malware that can read your filesystem still cannot `cat` a Secure Enclave key into a Discord webhook.
+
+You still have to trust the local machine for *use* of the key — malware can often ask the agent or enclave to sign login challenges while you are unlocked and present.
+Hardware does not make you immune to a fully compromised client.
+It does remove the classic failure mode where the private key itself becomes a durable, copyable credential.
+
+That trade is the whole point:
+
+- worse at "clone this key forever as a backup"
+- better at "stealing files should not steal my SSH identity"
+
+For many people who already carry a YubiKey, or who live on a Mac with a Secure Enclave, or who have a TPM sitting unused under Linux, that is a trade worth making.
+
+## HOW TO: Generate a key on Linux
+
+Install [`ssh-tpm-agent`](https://github.com/Foxboron/ssh-tpm-agent) (packaged on some distros, or via Go), then create a TPM-sealed key:
+
+```bash
+# Install (one option; your distro may package it)
+go install github.com/foxboron/ssh-tpm-agent/cmd/...@latest
+
+# Create a key bound to this machine's TPM
+ssh-tpm-keygen
+```
+
+That writes something like `~/.ssh/id_ecdsa.tpm` (sealed private key) and `~/.ssh/id_ecdsa.pub` (public key).
+Copy the `.pub` file into `authorized_keys` on servers as usual.
+
+## HOW TO: Generate a key on OSX
+
+On a Mac with a [Secure Enclave](https://support.apple.com/en-gb/guide/security/sec59b0b31ff/web), create a non-exportable identity and export an OpenSSH handle for it:
+
+```bash
+# Non-exportable P-256 key in the Secure Enclave; Touch ID on use
+sc_auth create-ctk-identity -l ssh -k p-256-ne -t bio
+
+# Download the handle into ~/.ssh (not the private key itself)
+cd ~/.ssh && ssh-keygen -K -w /usr/lib/ssh-keychain.dylib -N ""
+```
+
+You will get a public key file (and a small handle file) named after the label.
+Install the `.pub` on your servers.
+
+### A note on ed25519 on the Mac
+
+The Secure Enclave cannot do [Ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519).
+Apple's hardware only supports [NIST P-256](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm) elliptic curve keys for enclave-protected keys ([Apple's documentation](https://developer.apple.com/documentation/security/protecting-keys-with-the-secure-enclave)).
+That is a hardware limit of the Secure Enclave, not an OpenSSH limitation.
+So a Secure Enclave SSH key will be something like `sk-ecdsa-sha2-nistp256@openssh.com`, not `ed25519-sk`.
+If you want Ed25519 in hardware on a Mac, use a [YubiKey](https://developers.yubico.com/SSH/) (or similar) instead.
+
+## HOW TO: Generate a key with Yubikey
+
+Plug the [YubiKey](https://developers.yubico.com/SSH/) in, then:
+
+```bash
+ssh-keygen -t ed25519-sk -O resident -O verify-required -f ~/.ssh/id_ed25519_sk
+```
+
+- `ed25519-sk` keeps the private key material on the token ([Yubico's FIDO2 SSH guide](https://developers.yubico.com/SSH/Securing_SSH_with_FIDO2.html))
+- `resident` stores the key handle on the YubiKey so you can reload it on another machine with `ssh-keygen -K`
+- `verify-required` requires user verification as well as a touch: a [FIDO2](https://fidoalliance.org/fido2/) PIN on most YubiKeys, or a fingerprint on the [YubiKey Bio Series](https://www.yubico.com/products/yubikey-bio-series/)
+
+Copy `~/.ssh/id_ed25519_sk.pub` to your servers.
+
+On macOS, Apple's built-in OpenSSH often lacks FIDO support.
+Install OpenSSH from [Homebrew](https://brew.sh/) (`brew install openssh`) and put it first on your `PATH` if `ed25519-sk` is refused.
+
+## HOW TO: Use a key on Linux
+
+Point SSH at the TPM agent, then connect as normal:
+
+```bash
+ssh-tpm-agent --install-user-units
+systemctl --user enable --now ssh-tpm-agent.socket
+
+# In your shell profile, or for this session:
+export SSH_AUTH_SOCK="$(ssh-tpm-agent --print-socket)"
+
+ssh user@server.example.com
+```
+
+The agent loads `*.tpm` keys from `~/.ssh`.
+You may be prompted for a PIN or passphrase if you set one at creation time.
+
+## HOW TO: Use a key on OSX
+
+Tell OpenSSH to use Apple's [Secure Enclave](https://support.apple.com/en-gb/guide/security/sec59b0b31ff/web) provider, then use the handle file:
+
+```bash
+export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
+
+ssh -i ~/.ssh/id_ecdsa_sk_rk_ssh user@server.example.com
+```
+
+(The exact handle filename depends on the label you chose with `sc_auth`; check `~/.ssh`.)
+
+[Touch ID](https://support.apple.com/en-gb/HT207054) will prompt when the enclave signs.
+You can put the `SSH_SK_PROVIDER` export in your shell profile so you do not have to set it every time.
+
+## HOW TO: Use a key with Yubikey
+
+With the YubiKey plugged in:
+
+```bash
+# If you still have the local key file from generation:
+ssh -i ~/.ssh/id_ed25519_sk user@server.example.com
+
+# On a new machine, reload resident keys from the token:
+ssh-keygen -K
+# or load them straight into the agent:
+ssh-add -K
+
+ssh user@server.example.com
+```
+
+You will need to touch the YubiKey.
+If you used `verify-required`, you also need user verification: a FIDO2 PIN on most keys, or a fingerprint on a [YubiKey Bio](https://www.yubico.com/products/yubikey-bio-series/) (the PIN remains as a fallback if the fingerprint does not match).
+No usable private key is copied off the token — only a handle that still needs the hardware present.
