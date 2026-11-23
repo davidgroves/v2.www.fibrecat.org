@@ -33,4 +33,7 @@ debug-screenshot.png
 test-results/
 playwright-report/
 blob-report/
+
+# Crash dumps
 core
+core.*
